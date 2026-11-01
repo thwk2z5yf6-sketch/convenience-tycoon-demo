@@ -225,6 +225,10 @@ for(let x=1.15;x<half-.15;x+=1.05)cube(.055,2.1,.1,mats.metal,dir*x,1.26,6.43,fr
 }
 rebuildFrontFacade(15);
 cube(2.5,.32,.28,trim,0,2.75,6.34);
+// Fixed central storefront header: fills the visible gap between the left/right facade and entrance canopy.
+cube(2.5,.38,.18,facade,0,2.51,6.35);
+cube(2.5,.12,.24,trim,0,2.93,6.36);
+cube(.13,2.6,.2,mats.white,-1.13,1.3,6.36);cube(.13,2.6,.2,mats.white,1.13,1.3,6.36);
 cube(.13,2.6,.2,mats.white,-1.13,1.3,6.36);cube(.13,2.6,.2,mats.white,1.13,1.3,6.36);
 const doorLeft=new THREE.Group(),doorRight=new THREE.Group();scene.add(doorLeft,doorRight);doorLeft.position.set(-.55,0,6.35);doorRight.position.set(.55,0,6.35);
 cube(1.03,2.24,.065,material(0x91d5e5,.08,.12,.62),0,1.13,0,doorLeft);cube(1.03,2.24,.065,material(0x91d5e5,.08,.12,.62),0,1.13,0,doorRight);for(const door of [doorLeft,doorRight]){cube(1.04,.07,.09,mats.metal,0,2.25,0,door);cube(.07,2.26,.09,mats.metal,door===doorLeft?-.5:.5,1.13,0,door);cube(1.04,.07,.09,mats.metal,0,.05,0,door)}
