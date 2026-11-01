@@ -570,27 +570,6 @@ var workerLevel=1;
 let categoryStock={food:10,drink:10,snack:10},categorySold={food:0,drink:0,snack:0};
 try{const d=JSON.parse(localStorage.getItem('store-v37-products')||'null');if(d){categoryStock={...categoryStock,...d.stock};categorySold={...categorySold,...d.sold};workerLevel=Math.max(1,Math.min(5,d.workerLevel||1));inventory=Object.values(categoryStock).reduce((a,b)=>a+b,0)}}catch(e){}
 function saveProducts(){try{localStorage.setItem('store-v37-products',JSON.stringify({stock:categoryStock,sold:categorySold,workerLevel}))}catch(e){}}
-const offlineKey='store-vnext-offline-lastseen';
-let offlineLastSeen=Number(localStorage.getItem(offlineKey))||Date.now();
-const offlinePanel=document.createElement('section');
-offlinePanel.style.cssText='margin:10px;padding:12px;border-radius:14px;background:#15394a;color:white;border:1px solid #4bc9b5';
-offlinePanel.innerHTML='<strong>🌙 離線營業</strong><p id="offlineResult">關閉遊戲後最多累積 8 小時收益，商品售完即停止。</p>';
-businessPanel.parentElement.insertBefore(offlinePanel,businessPanel.nextSibling);
-function offlineStamp(){try{localStorage.setItem(offlineKey,String(Date.now()))}catch(e){}}
-function settleOffline(){
- const now=Date.now(),minutes=Math.floor(Math.min(28800000,Math.max(0,now-offlineLastSeen))/60000);
- offlineLastSeen=now;offlineStamp();
- if(minutes<1)return;
- const result=document.getElementById('offlineResult');
- if(!cashierHired){result.textContent='離線 '+minutes+' 分鐘，未聘收銀員，沒有收益。';return}
- const available=Object.values(categoryStock).reduce((n,v)=>n+Math.max(0,Math.floor(Number(v)||0)),0);
- let remaining=Math.min(available,Math.floor(minutes*60/Math.max(90,240-(Math.min(5,workerLevel)-1)*25))),sold=0;
- for(const id of ['food','drink','snack']){const n=Math.min(remaining,Math.max(0,Math.floor(Number(categoryStock[id])||0)));categoryStock[id]-=n;categorySold[id]+=n;remaining-=n;sold+=n}
- const revenue=sold*Math.max(1,Math.floor(Number(price)||49)),cost=Math.floor(revenue*.12),profit=revenue-cost;
- cash+=profit;earnings+=revenue;expenses+=cost;sales+=sold;
- inventory=Object.values(categoryStock).reduce((n,v)=>n+Math.max(0,Number(v)||0),0);
- saveProducts();save();
- result.textContent='離線 '+minutes+' 分鐘，售出 '+sold+' 件，營收 
 for(const [id,info] of Object.entries(productTypes))document.getElementById(id).onclick=()=>{if(cash<info.cost)return hud('現金不足');cash-=info.cost;expenses+=info.cost;categoryStock[id]+=info.units;inventory+=info.units;saveProducts();save();hud('已補充'+info.label+' '+info.units+' 件')};
 // V72: per-product SKU warehouse, distinct purchase prices and sales counters.
 const skuItems=[
