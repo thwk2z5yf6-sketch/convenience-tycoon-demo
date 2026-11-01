@@ -777,7 +777,27 @@ createWorker();worker.person.visible=staff;
 let restockerCount=staff?1:0;try{const n=Number(localStorage.getItem('store-v133-restockers'));if(n>0)restockerCount=Math.min(4,n)}catch(e){}if(restockerCount)staff=true;
 const extraRestockers=[];
 function syncRestockers(){while(extraRestockers.length<restockerCount-1){const g=addCharacterDetails(makeFallbackPerson());g.position.set(1+extraRestockers.length,0,-1);scene.add(g);extraRestockers.push({person:g,clock:2+extraRestockers.length*2,target:null})}extraRestockers.forEach((w,i)=>w.person.visible=staff&&i<restockerCount-1)}
-function updateExtraRestockers(dt){if(!staff)return;extraRestockers.slice(0,restockerCount-1).forEach((w,i)=>{w.clock-=dt;if(w.clock<=0){const targets=availableFixtureTargets().filter(o=>o.fixture&&shelfStock(o.fixture)<8&&(skuFor(o.fixture)?(skuWarehouse[skuFor(o.fixture)]||0)>0:(categoryStock[o.kind]||0)>0));const target=targets[i%Math.max(1,targets.length)];if(target){w.target=target;if(refillFixture(target.fixture)){spawnWorkEffect(target.fixture.position,'stock');save()}}w.clock=4+i}if(w.target){const p=w.person.position,dx=w.target.x-p.x,dz=w.target.z-p.z,d=Math.hypot(dx,dz);if(d>.7){const step=Math.min(d,dt);const x=p.x+dx/d*step,z=p.z+dz/d*step;if(!obstacle(x,z)){p.x=x;p.z=z;w.person.rotation.y=Math.atan2(dx,dz)}}}})}
+function updateExtraRestockers(dt){
+ if(!staff)return;
+ extraRestockers.slice(0,Math.max(0,restockerCount-1)).forEach((w,i)=>{
+  w.clock-=dt;
+  if(!w.target&&w.clock<=0){
+   const targets=availableFixtureTargets().filter(o=>o.fixture&&o.fixture.visible!==false&&shelfStock(o.fixture)<8&&(skuFor(o.fixture)?(skuWarehouse[skuFor(o.fixture)]||0)>0:(categoryStock[o.kind]||0)>0));
+   w.target=targets.length?targets[i%targets.length]:null;
+   w.clock=1.5+i*.3;
+  }
+  if(!w.target)return;
+  const p=w.person.position,dx=w.target.x-p.x,dz=w.target.z-p.z,d=Math.hypot(dx,dz);
+  if(d>.85){
+   const step=Math.min(d,Math.max(0,dt)*1.6),x=p.x+dx/d*step,z=p.z+dz/d*step;
+   if(!obstacle(x,z)){p.x=x;p.z=z;w.person.rotation.y=Math.atan2(dx,dz)}
+   else if(w.clock<=0){w.target=null;w.clock=2}
+  }else if(w.clock<=0){
+   if(w.target.fixture&&refillFixture(w.target.fixture)){spawnWorkEffect(w.target.fixture.position,'stock');save()}
+   w.target=null;w.clock=2+i*.4;
+  }
+ });
+}
 syncRestockers();
 
 function moveWorker(dt){
