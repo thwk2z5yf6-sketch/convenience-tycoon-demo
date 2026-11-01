@@ -1008,8 +1008,9 @@ function planScreenPick(clientX,clientY){const rect=renderer.domElement.getBound
 function planValid(x,z,ignore){
  if(x<(-6-leftExtension*2.7)||x>5.5||z>4.5||z<(-5-(storeLevel-1)*3))return false;
  if(Math.abs(x)<1.4&&z>4.7)return false;
- if(Math.hypot(x-4.6,z-3.7)<2&&ignore!==primaryCashierFixture)return false;
- const fixtures=[...new Set([...furniture,...extra,primaryCashierFixture,...extraCounterGroups])];
+ // Keep the entrance clear without reserving the checkout counter's obsolete fixed coordinates.
+ if(Math.abs(x-4.6)<1.15&&z>4.1&&ignore!==primaryCashierFixture)return false;
+ const fixtures=[...new Set([...furniture,...extra,primaryCashierFixture,...extraCounterGroups.slice(0,extraCashiers)])];
  return !fixtures.some(g=>g!==ignore&&g.visible!==false&&g.parent&&Math.hypot(g.position.x-x,g.position.z-z)<(g.userData.kind==='fridge'?2:1.7));
 }
 function planRefreshItems(){const old=pi.value;pi.innerHTML='';planItems().forEach((g,i)=>{const o=document.createElement('option');o.value=i;o.textContent=(g.userData.kind||'設備')+' '+(i+1);pi.appendChild(o)});if(old!==''&&planItems()[Number(old)])pi.value=old;else if(pi.options.length)pi.selectedIndex=0;pi.style.display=(pm.value==='move'||pm.value==='delete')?'':'none';planRefreshQuickList()}
@@ -1034,6 +1035,7 @@ placementCapture.addEventListener('pointercancel',()=>{planDragging=false});
 function planConfirm(){
 if(pm.value==='delete'){
  const g=planSelected();if(!g)return info.textContent='請先選擇要刪除的設備';
+ if(g===primaryCashierFixture)return info.textContent='第 1 座收銀台是必要設備，請使用移動或旋轉';
  if(!window.confirm('確定要刪除這個設備嗎？此操作無法復原。'))return;
  if(g.userData.original){const index=originalFixtures.indexOf(g);if(index<0)return info.textContent='找不到原始設備資料，已取消刪除以保護存檔';const fi=furniture.indexOf(g);if(fi>=0)furniture.splice(fi,1);const si=shelves.indexOf(g);if(si>=0)shelves.splice(si,1);if(g===fridge)fridge.visible=false;g.parent?.remove(g);if(index>=0)deletedOriginal.add(index);saveOriginal();saveDeletedOriginal()}
  else if(extra.includes(g)){const index=extra.indexOf(g);extra.splice(index,1);g.parent?.remove(g);cash+=Math.floor((prices[g.userData.kind]||0)/2);saveExtra()}
