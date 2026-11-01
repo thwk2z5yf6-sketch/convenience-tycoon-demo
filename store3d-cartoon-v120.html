@@ -890,6 +890,8 @@ let extraCashiers=0;try{extraCashiers=Math.max(0,Math.min(2,Number(localStorage.
 const primaryCashierFixture=new THREE.Group();primaryCashierFixture.userData.kind='cashier';primaryCashierFixture.userData.primaryCashier=true;scene.add(primaryCashierFixture);
 try{const p=JSON.parse(localStorage.getItem('store-vnext-primary-cashier')||'null');if(p&&Number.isFinite(p.x)&&Number.isFinite(p.z)){checkoutLanes[0].x=p.x;checkoutLanes[0].z=p.z;primaryCashierFixture.rotation.y=Number(p.rotation)||0}}catch(e){}
 primaryCashierFixture.position.set(checkoutLanes[0].x,0,checkoutLanes[0].z-1.1);
+// Restore cashier NPC position after saved layout is loaded.
+cashierPerson.position.set(checkoutLanes[0].x,0,checkoutLanes[0].z+.7);
 // Make the primary checkout selectable in raycast-based layout mode.
 const primaryPickMesh=new THREE.Mesh(new THREE.BoxGeometry(1.5,1.1,.85),new THREE.MeshBasicMaterial({visible:false}));primaryPickMesh.position.y=.55;primaryCashierFixture.add(primaryPickMesh);
 function savePrimaryCashier(){try{localStorage.setItem('store-vnext-primary-cashier',JSON.stringify({x:checkoutLanes[0].x,z:checkoutLanes[0].z,rotation:primaryCashierFixture.rotation.y}))}catch(e){}}
