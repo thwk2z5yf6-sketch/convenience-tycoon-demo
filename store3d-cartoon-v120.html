@@ -656,7 +656,35 @@ const incomeTasks=[
 {id:'recycle',name:'♻️ 包材回收',step:8,reward:160,desc:'每新增售出 8 件'},
 {id:'member',name:'🎟️ 會員回饋',step:12,reward:420,desc:'每新增售出 12 件'},
 {id:'quality',name:'⭐ 服務獎金',step:10,reward:320,desc:'每新增售出 10 件，滿意度 75% 以上'}];
-function renderIncomeTasks(){const root=document.getElementById('extraIncomeButtons');if(!root)return;root.replaceChildren();for(const task of incomeTasks){const completed=Math.floor(sales/task.step),claimed=extraIncomeClaims[task.id]||0,available=completed>claimed&&(task.id!=='quality'||happy>=75);const b=document.createElement('button');b.type='button';b.disabled=!available;b.style.cssText='padding:10px 7px;border:1px solid #69c6ae;border-radius:10px;background:'+(available?'#176e5b':'#294c57')+';color:#fff;min-width:0;white-space:normal;font-size:12px';b.textContent=task.name+' +$'+task.reward+'｜'+task.desc+(available?'｜可領取':'｜進度 '+(sales%task.step)+'/'+task.step);b.onclick=()=>{if(!available)return;extraIncomeClaims[task.id]=claimed+1;cash+=task.reward;earnings+=task.reward;recordFinance('income',task.name,task.reward);try{localStorage.setItem('store-v94-income',JSON.stringify(extraIncomeClaims))}catch(e){}save();refreshBusiness();hud(task.name+' 獲得 $'+task.reward);renderIncomeTasks()};root.appendChild(b)}}
+function renderIncomeTasks(){
+ const root=document.getElementById('extraIncomeButtons');if(!root)return;
+ // Claim synchronously before rendering, so completed tasks never remain clickable.
+ let earned=0;
+ for(const task of incomeTasks){
+  const completed=Math.floor(sales/task.step);
+  const claimed=Math.max(0,Number(extraIncomeClaims[task.id])||0);
+  if(completed<=claimed||(task.id==='quality'&&happy<75))continue;
+  const amount=(completed-claimed)*task.reward;
+  extraIncomeClaims[task.id]=completed;
+  cash+=amount;earnings+=amount;earned+=amount;
+  try{recordFinance('income',task.name+' 自動獎金',amount)}catch(e){console.warn('Finance log',e)}
+ }
+ if(earned){
+  try{localStorage.setItem('store-v94-income',JSON.stringify(extraIncomeClaims))}catch(e){}
+  save();refreshBusiness();
+  try{hud('任務自動領獎 $'+earned)}catch(e){}
+ }
+ root.replaceChildren();
+ for(const task of incomeTasks){
+  const claimed=Math.max(0,Number(extraIncomeClaims[task.id])||0);
+  const progress=Math.max(0,sales-claimed*task.step);
+  const b=document.createElement('div');
+  b.style.cssText='padding:10px 7px;border:1px solid #69c6ae;border-radius:10px;background:#294c57;color:#fff;min-width:0;white-space:normal;font-size:12px';
+  b.textContent=task.name+' +$'+task.reward+'｜自動領取｜'+(task.id==='quality'&&happy<75?'等待滿意度達 75%':'進度 '+Math.min(progress,task.step)+'/'+task.step);
+  root.appendChild(b);
+ }
+}
+
 renderIncomeTasks();
 // V95 finance reporting: baseline-based totals, no fabricated historical transactions.
 let financeBase={earnings,expenses,cash,day};let financeLedger=[];try{const saved=JSON.parse(localStorage.getItem('store-v95-finance')||'null');if(saved&&Array.isArray(saved.ledger)){financeBase=saved.base;financeLedger=saved.ledger}}catch(e){}
@@ -1025,23 +1053,7 @@ removeFourUnregisteredKiosks();
 // Legacy furnishing buttons were removed by the unified configuration toolbar; its mode and type selectors now own these actions.
 requestAnimationFrame(loop);let arrivalClock=0;let gameSpeed=1;const speedButton=document.createElement('button');speedButton.type='button';speedButton.textContent='⏩ 速度 1×';speedButton.style.cssText='position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));right:12px;z-index:1200;background:#123d50;color:white;border:1px solid #6dd3c2;border-radius:12px;padding:9px 12px;font:700 13px system-ui;box-shadow:0 3px 12px #0005';speedButton.onclick=()=>{gameSpeed=gameSpeed===1?2:gameSpeed===2?3:1;speedButton.textContent='⏩ 速度 '+gameSpeed+'×';hud('遊戲速度 '+gameSpeed+'×')};document.body.appendChild(speedButton);setInterval(()=>{for(let tick=0;tick<gameSpeed;tick++){gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=300;earnings+=300;hud('今日任務達成：獎勵 $300')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65*restockerCount:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,4-publicity*.24);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.98,.85*popularity+publicity*.035))spawn()}}},1000);hud('營業開始！顧客會自動上門')}catch(e){error(e)}
 /* Auto-management: saved inventory and task claims use existing storage keys. */
-function runAutoIncomeTasks(){
- let total=0;
- for(const task of incomeTasks){
-  const eligible=Math.floor(sales/task.step);
-  const claimed=Math.max(0,Number(extraIncomeClaims[task.id]||0));
-  if(eligible<=claimed||(task.id==='quality'&&happy<75))continue;
-  const count=eligible-claimed;
-  const reward=count*Math.round(task.reward*1.5);
-  extraIncomeClaims[task.id]=eligible;
-  cash+=reward;earnings+=reward;total+=reward;
-  recordFinance('income',task.name+' 自動獎金',reward);
- }
- if(total){
-  try{localStorage.setItem('store-v94-income',JSON.stringify(extraIncomeClaims))}catch(e){}
-  save();refreshBusiness();renderIncomeTasks();hud('任務自動領獎 $'+total);
- }
-}
+function runAutoIncomeTasks(){renderIncomeTasks()}
 function runAutoStock(){
  if(!staff)return;
  let purchases=0,changed=false;
