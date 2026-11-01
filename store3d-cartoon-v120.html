@@ -1026,12 +1026,13 @@ if(pm.value==='delete'||pm.value==='move'&&e.type==='pointerdown'&&!planMoveRead
 const rect=renderer.domElement.getBoundingClientRect();placementPointer.set(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);placementRay.setFromCamera(placementPointer,camera);if(placementRay.ray.intersectPlane(placementPlane,placementPoint)){planPos={x:Math.round(placementPoint.x),z:Math.round(placementPoint.z)};planUpdateGhost()}}
 let planDragging=false;let planMoveReady=false;
 placementCapture.addEventListener('pointerdown',e=>{e.preventDefault();planDragging=true;placementCapture.setPointerCapture?.(e.pointerId);planPick(e)});
-placementCapture.addEventListener('pointermove',e=>{if(planDragging&&pm.value!=='delete')planPick(e)});
+placementCapture.addEventListener('pointermove',e=>{if(planDragging&&pm.value!=='delete'&&(pm.value!=='move'||planMoveReady))planPick(e)});
 placementCapture.addEventListener('pointerup',()=>{planDragging=false});
 placementCapture.addEventListener('pointercancel',()=>{planDragging=false});
 function planConfirm(){
 if(pm.value==='delete'){
  const g=planSelected();if(!g)return info.textContent='請先選擇要刪除的設備';
+ if(g===primaryCashierFixture)return info.textContent='第 1 座收銀台不可刪除，可使用移動或旋轉';
  if(!window.confirm('確定要刪除這個設備嗎？此操作無法復原。'))return;
  if(g.userData.original){const index=originalFixtures.indexOf(g);if(index<0)return info.textContent='找不到原始設備資料，已取消刪除以保護存檔';const fi=furniture.indexOf(g);if(fi>=0)furniture.splice(fi,1);const si=shelves.indexOf(g);if(si>=0)shelves.splice(si,1);if(g===fridge)fridge.visible=false;g.parent?.remove(g);if(index>=0)deletedOriginal.add(index);saveOriginal();saveDeletedOriginal()}
  else if(extra.includes(g)){const index=extra.indexOf(g);extra.splice(index,1);g.parent?.remove(g);cash+=Math.floor((prices[g.userData.kind]||0)/2);saveExtra()}
