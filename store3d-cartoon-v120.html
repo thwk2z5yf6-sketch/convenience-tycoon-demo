@@ -658,6 +658,411 @@ const incomeTasks=[
 {id:'quality',name:'⭐ 服務獎金',step:10,reward:320,desc:'每新增售出 10 件，滿意度 75% 以上'}];
 function renderIncomeTasks(){const root=document.getElementById('extraIncomeButtons');if(!root)return;root.replaceChildren();for(const task of incomeTasks){const completed=Math.floor(sales/task.step),claimed=extraIncomeClaims[task.id]||0,available=completed>claimed&&(task.id!=='quality'||happy>=75);const b=document.createElement('button');b.type='button';b.disabled=!available;b.style.cssText='padding:10px 7px;border:1px solid #69c6ae;border-radius:10px;background:'+(available?'#176e5b':'#294c57')+';color:#fff;min-width:0;white-space:normal;font-size:12px';b.textContent=task.name+' +$'+task.reward+'｜'+task.desc+(available?'｜可領取':'｜進度 '+(sales%task.step)+'/'+task.step);b.onclick=()=>{if(!available)return;extraIncomeClaims[task.id]=claimed+1;cash+=task.reward;earnings+=task.reward;recordFinance('income',task.name,task.reward);try{localStorage.setItem('store-v94-income',JSON.stringify(extraIncomeClaims))}catch(e){}save();refreshBusiness();hud(task.name+' 獲得 $'+task.reward);renderIncomeTasks()};root.appendChild(b)}}
 renderIncomeTasks();
+function autoClaimIncomeTasks(){
+ let earned=0;
+ for(const task of incomeTasks){
+  const completed=Math.floor(sales/task.step),claimed=Number(extraIncomeClaims[task.id]||0);
+  if(task.id==='quality'&&happy<75)continue;
+  const count=Math.max(0,completed-claimed);if(!count)continue;
+  extraIncomeClaims[task.id]=completed;
+  const bonus=count*Math.round(task.reward*1.5);cash+=bonus;earnings+=bonus;earned+=bonus;
+  recordFinance('income',task.name+' 自動任務獎金',bonus);
+ }
+ if(earned){try{localStorage.setItem('store-v94-income',JSON.stringify(extraIncomeClaims))}catch(e){}save();renderIncomeTasks();refreshBusiness();hud('🎁 任務自動領獎 +: baseline-based totals, no fabricated historical transactions.
+let financeBase={earnings,expenses,cash,day};let financeLedger=[];try{const saved=JSON.parse(localStorage.getItem('store-v95-finance')||'null');if(saved&&Array.isArray(saved.ledger)){financeBase=saved.base;financeLedger=saved.ledger}}catch(e){}
+function persistFinance(){try{localStorage.setItem('store-v95-finance',JSON.stringify({base:financeBase,ledger:financeLedger.slice(-120)}))}catch(e){}}
+function recordFinance(type,label,amount){financeLedger.push({day,type,label,amount,at:new Date().toLocaleString('zh-TW')});financeLedger=financeLedger.slice(-120);persistFinance();renderFinance()}
+const financePanel=document.createElement('section');financePanel.id='financePanel';financePanel.style.cssText='margin:10px;padding:12px;border-radius:15px;background:#183b48;color:white;border:1px solid #77b7b6';
+financePanel.innerHTML='<strong>📊 經營收支報表</strong><div id="financeSummary" style="display:flex;gap:9px;flex-wrap:wrap;margin:10px 0"></div><details><summary>查看最近收支紀錄</summary><div id="financeEntries" style="max-height:220px;overflow:auto;font-size:12px;margin-top:8px"></div></details><small style="display:block;opacity:.7;margin-top:8px">從 V95 起記錄詳細收支；過往版本僅保留累計數字，不會補造交易紀錄。</small>';
+document.querySelector('.game-menu').before(financePanel);
+// V112: fix initialization order; consolidate extra income, services and finance into the existing management menu.
+const extraPanels=[
+{node:extraIncomePanel,title:'💵 多元收入任務'},
+{node:servicePanel,title:'🏪 多元服務設備'},
+{node:financePanel,title:'📊 經營收支報表'}
+];
+const mainMenuRoot=document.querySelector('.game-menu');
+for(const {node,title} of extraPanels){
+ const section=document.createElement('details');section.className='v111-management-section';
+ const heading=document.createElement('summary');heading.textContent=title;
+ section.appendChild(heading);section.appendChild(node);
+ node.style.margin='0';node.style.borderRadius='0 0 12px 12px';
+ mainMenuRoot.appendChild(section);
+}
+function renderFinance(){const el=document.getElementById('financeSummary');if(!el)return;const income=Math.max(0,earnings-financeBase.earnings),outgo=Math.max(0,expenses-financeBase.expenses);el.innerHTML='<span>💵 現金 $'+cash+'</span><span>📈 本版累計收入 $'+income+'</span><span>📉 本版累計支出 $'+outgo+'</span><span>📊 本版淨額 $'+(income-outgo)+'</span>';const root=document.getElementById('financeEntries');root.replaceChildren();for(const entry of financeLedger.slice(-25).reverse()){const row=document.createElement('div');row.style.cssText='padding:6px 0;border-bottom:1px solid #ffffff25';row.textContent=entry.at+'｜'+entry.label+'｜'+(entry.type==='income'?'+':'-')+'$'+entry.amount;root.appendChild(row)}}
+renderFinance();
+// V96 chain management: branches are independent accounting operations, not yet 3D interiors.
+let branches=[];let branchClock=0;try{const d=JSON.parse(localStorage.getItem('store-v96-branches')||'[]');if(Array.isArray(d))branches=d}catch(e){}
+function saveBranches(){try{localStorage.setItem('store-v96-branches',JSON.stringify(branches))}catch(e){}}
+const branchPanel=document.createElement('section');branchPanel.style.cssText='margin:10px;padding:12px;border-radius:15px;background:#183d4b;color:#fff';
+branchPanel.innerHTML='<strong>🏬 連鎖分店經營</strong><p style="font-size:12px">總店為目前 3D 店面；分店先以獨立營運帳目管理。</p><div id="branchList"></div><button id="branchBuy" style="width:100%;padding:10px;border:0;border-radius:9px;background:#168c73;color:white">＋ 開設分店 $12,000</button>';
+document.querySelector('.game-menu').before(branchPanel);
+function renderBranches(){const el=document.getElementById('branchList');el.replaceChildren();for(const b of branches){const row=document.createElement('div');row.style.cssText='padding:7px 0;border-bottom:1px solid #ffffff22';row.textContent='🏪 '+b.name+'｜收入 $'+b.revenue+'｜成本 $'+b.cost+'｜淨利 $'+(b.revenue-b.cost);el.appendChild(row)}document.getElementById('branchBuy').disabled=cash<12000||branches.length>=8}
+document.getElementById('branchBuy').onclick=()=>{if(cash<12000||branches.length>=8)return;cash-=12000;expenses+=12000;recordFinance('expense','開設分店',12000);branches.push({name:'第 '+(branches.length+2)+' 分店',revenue:0,cost:0});saveBranches();save();renderBranches();refreshBusiness()};
+function updateBranches(dt){branchClock+=dt;if(branchClock<35||!branches.length)return;branchClock=0;for(const b of branches){const revenue=180+Math.floor(Math.random()*110),cost=80+Math.floor(Math.random()*50);b.revenue+=revenue;b.cost+=cost;cash+=revenue-cost;earnings+=revenue;expenses+=cost;recordFinance('income',b.name+' 營業收入',revenue);recordFinance('expense',b.name+' 營運成本',cost)}saveBranches();save();renderBranches()}
+renderBranches();
+const startMoneyButton=document.createElement('button');startMoneyButton.textContent='🎮 新開局（$50,000）';startMoneyButton.title='重設經營資金及任務進度，保留目前店面擺設';startMoneyButton.onclick=()=>{if(!confirm('確定重新開始經營？現金恢復 $50,000、銷售與任務重新計算；保留已擺設的設備。'))return;cash=50000;sales=0;day=1;earnings=0;expenses=0;publicity=0;servedToday=0;happy=70;reviewCount=0;reviewTotal=0;categoryStock.food=10;categoryStock.drink=10;categoryStock.snack=10;inventory=30;categorySold.food=0;categorySold.drink=0;categorySold.snack=0;for(const g of [...furniture,...extra])if(['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))g.userData.shelfStock=0;saveShelfStock();saveProducts();save();refreshFacings();refreshBusiness();hud('新開局成功，獲得 $50,000')};document.querySelector('.game-menu').appendChild(startMoneyButton);function hud(t){
+ const entries=[['📅 天數','第 '+day+' 天'],['💰 現金','$'+cash],['📦 庫存',String(inventory)],['🛍️ 售出',String(sales)],['🏷️ 售價','$'+price],['👥 排隊',String(queue.length)],['📣 人氣',String(publicity)]];
+ msg.replaceChildren();
+ const title=document.createElement('div');title.className='status-title';title.textContent='🏪 '+(t||'營業資訊');msg.appendChild(title);
+ for(const [label,value] of entries){const chip=document.createElement('div');chip.className='status-chip';const l=document.createElement('span');l.className='status-label';l.textContent=label;const v=document.createElement('span');v.className='status-value';v.textContent=value;chip.append(l,v);msg.appendChild(chip)}
+ if(t){let notice=document.getElementById('gameActionNotice');if(!notice){notice=document.createElement('div');notice.id='gameActionNotice';notice.setAttribute('role','status');notice.style.cssText='position:fixed;top:calc(76px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(92vw,560px);z-index:2100;padding:13px 16px;border:2px solid #ffe091;border-radius:14px;background:#12374bf5;color:#fff;font:700 15px system-ui;text-align:center;pointer-events:none;box-shadow:0 5px 22px #0008';document.body.appendChild(notice)}notice.textContent=t;clearTimeout(hud.noticeTimer);hud.noticeTimer=setTimeout(()=>{notice.style.display='none'},4000);notice.style.display='block'}
+}
+function makeFallbackPerson(){const g=new THREE.Group();const palette=[0x75b9d8,0xf2a78b,0x8bc5a4,0xb4a4d9,0xf3c67c,0xf0d68b,0x7d9cb7,0xd1a4c7,0x6db6aa,0xe5a6a1],shirt=material(palette[Math.floor(Math.random()*palette.length)]),skin=material(0xf4c9aa),hair=material([0x554239,0x312e35,0x91613d][Math.floor(Math.random()*3)]),pants=material(0x50647a),white=material(0xfaf8f0),dark=material(0x2f3b48);
+function ball(r,m,x,y,z,sx=1,sy=1,sz=1){const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);g.add(o);return o}
+function limb(name,x,y,z,m){const o=new THREE.Mesh(new THREE.CapsuleGeometry(.115,.42,4,8),m);o.name=name;o.position.set(x,y,z);g.add(o);return o}
+const feminine=Math.random()<.5;ball(.39,shirt,0,1.04,0,1,.98,.72);if(feminine){ball(.34,shirt,0,.8,0,1,.6,.85);ball(.17,hair,-.27,1.67,-.13,1,1.8,1);ball(.17,hair,.27,1.67,-.13,1,1.8,1)}else if(Math.random()<.4){ball(.33,material(0xeeeeed),0,1.95,0,1,.26,1)}ball(.39,skin,0,1.75,.03,1,1.06,.93);ball(.38,hair,0,1.99,-.045,1,.48,1);ball(.085,skin,-.31,1.67,.01);ball(.085,skin,.31,1.67,.01);
+ball(.042,dark,-.13,1.78,.39);ball(.042,dark,.13,1.78,.39);ball(.062,skin,0,1.60,.36);ball(.052,material(0xf5a3a2),-.24,1.65,.32,1,.5,.45);ball(.052,material(0xf5a3a2),.24,1.65,.32,1,.5,.45);
+const ll=limb('leftLeg',-.16,.43,0,pants),rl=limb('rightLeg',.16,.43,0,pants),la=limb('leftArm',-.41,1.08,0,shirt),ra=limb('rightArm',.41,1.08,0,shirt);
+ball(.16,white,-.16,.13,.09,1.1,.5,1.45);ball(.16,white,.16,.13,.09,1.1,.5,1.45);g.userData.limbs=[ll,rl,la,ra];return g}
+// V20: rounded character details, realistic-cute silhouettes, varied hair and accessories.
+const addCharacterDetails=g=>{
+const skin=material(0xf3c5a5,0,.85),dark=material(0x392f37),cheek=material(0xe8a6a2),hair=material([0x43332f,0x7e533b,0x302f3d][Math.floor(Math.random()*3)]);
+function sphere(x,y,z,r,m,sx=1,sy=1,sz=1){const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);g.add(o);return o}
+sphere(-.19,1.64,.275,.055,cheek,1,.6,.35);sphere(.19,1.64,.275,.055,cheek,1,.6,.35);
+sphere(0,1.96,.025,.31,hair,1,.43,.9);sphere(-.21,1.87,.06,.15,hair,.75,1.1,.85);
+sphere(.21,1.87,.06,.15,hair,.75,1.1,.85);
+sphere(0,1.56,.305,.04,material(0xa96e66),1,.35,.4);
+const jacket=new THREE.Mesh(new THREE.TorusGeometry(.25,.065,7,16,Math.PI),material(0xf7f4ec));jacket.rotation.z=Math.PI; jacket.position.set(0,1.18,.23);g.add(jacket);
+return g};
+template=addCharacterDetails(makeFallbackPerson());msg.textContent='顧客已進店（內建人物模型）';const loader=new GLTFLoader();if(modelURL)loader.load(modelURL,gltf=>{if(!gltf.scene)return;msg.textContent='人物模型已載入；使用可動作內建角色'},undefined,e=>{msg.textContent='顧客已進店，使用內建人物模型'});// V11 grid navigation: NPCs use walkable aisles instead of straight-line movement.
+/* Initialize before first NPC spawn and pathfinding call. */
+const extraCounterGroups=[];
+const GRID=.5,MINX=-7,MAXX=7,MAXZ=9;
+const cell=(x,z)=>[Math.round(x/GRID),Math.round(z/GRID)];
+const xy=(i,j)=>({x:i*GRID,z:j*GRID});
+function obstacle(x,z){if(x<MINX-leftExtension*2.7||x>MAXX||z<(-6.25-(storeLevel-1)*3)||z>MAXZ)return true;if(z>5.85&&z<7.1&&Math.abs(x)>0.85)return true;
+if(x>3.1&&x<7.25&&z>2.2&&z<5.35)return true;
+if(x>3.7&&x<7.1&&z< -5.15&&storeLevel===1&&sideLevel===0)return true;
+if(x< -5.05&&z>3.25&&z<4.95)return true;
+if(x< -5.0&&z>1.55&&z<3.05)return true;
+if(z< -4.85&&x<0&&storeLevel===1&&sideLevel===0)return true;
+for(const g of [...furniture,...extra]){if(g.visible===false||!['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))continue;const wide=g.userData.kind==='fridge'?1.85:1.22,deep=g.userData.kind==='fridge'?.8:1.08;if(Math.abs(x-g.position.x)<wide&&Math.abs(z-g.position.z)<deep)return true;}
+for(const g of extraCounterGroups||[])if(g.visible&&Math.abs(x-g.position.x)<.85&&Math.abs(z-g.position.z)<.6)return true;
+for(const g of extra)if(!['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind)&&Math.abs(x-g.position.x)<.75&&Math.abs(z-g.position.z)<.7)return true;
+return false}
+function route(from,to){
+const start=cell(from.x,from.z),goal=cell(to.x,to.z),key=(i,j)=>i+','+j,open=[start],seen=new Set([key(...start)]),prev=new Map();let found=null,best=start,bestD=Infinity;
+while(open.length){const p=open.shift(),q=xy(...p),distance=Math.hypot(q.x-to.x,q.z-to.z);
+if(distance<bestD){bestD=distance;best=p}
+if(p[0]===goal[0]&&p[1]===goal[1]){found=p;break}
+for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){const n=[p[0]+d[0],p[1]+d[1]],v=xy(...n),k=key(...n);if(seen.has(k)||obstacle(v.x,v.z))continue;seen.add(k);prev.set(k,p);open.push(n)}}
+if(!found)found=best;
+const path=[];let p=found;while(p&&key(...p)!==key(...start)){path.unshift(xy(...p));p=prev.get(key(...p))}
+return {path,end:xy(...found),reached:bestD<.4||key(...found)===key(...goal)}
+}
+function setDestination(c,x,z){const r=route(c.person.position,{x,z});c.path=r.path;c.target.set(r.end.x,0,r.end.z);c.blocked=false;c.retries=0;return r.reached}
+let worker=null,workerStage='idle',workerTimer=0;
+function createWorker(){if(worker)return;const g=addCharacterDetails(makeFallbackPerson());g.position.set(3.1,0,1.2);scene.add(g);worker={person:g,target:new THREE.Vector3(3.1,0,1.2),path:[],speed:1.05,walk:0};workerStage='idle'}
+createWorker();worker.person.visible=staff;
+let restockerCount=staff?1:0;try{const n=Number(localStorage.getItem('store-v133-restockers'));if(n>0)restockerCount=Math.min(4,n)}catch(e){}if(restockerCount)staff=true;
+const extraRestockers=[];
+function syncRestockers(){while(extraRestockers.length<restockerCount-1){const g=addCharacterDetails(makeFallbackPerson());g.position.set(1+extraRestockers.length,0,-1);scene.add(g);extraRestockers.push({person:g,clock:2+extraRestockers.length*2,target:null})}extraRestockers.forEach((w,i)=>w.person.visible=staff&&i<restockerCount-1)}
+function updateExtraRestockers(dt){if(!staff)return;extraRestockers.slice(0,restockerCount-1).forEach((w,i)=>{w.clock-=dt;if(w.clock<=0){const targets=availableFixtureTargets().filter(o=>o.fixture&&shelfStock(o.fixture)<8&&(skuFor(o.fixture)?(skuWarehouse[skuFor(o.fixture)]||0)>0:(categoryStock[o.kind]||0)>0));const target=targets[i%Math.max(1,targets.length)];if(target){w.target=target;if(refillFixture(target.fixture)){spawnWorkEffect(target.fixture.position,'stock');save()}}w.clock=4+i}if(w.target){const p=w.person.position,dx=w.target.x-p.x,dz=w.target.z-p.z,d=Math.hypot(dx,dz);if(d>.7){const step=Math.min(d,dt);const x=p.x+dx/d*step,z=p.z+dz/d*step;if(!obstacle(x,z)){p.x=x;p.z=z;w.person.rotation.y=Math.atan2(dx,dz)}}}})}
+syncRestockers();
+function autoManageStock(){
+ if(!staff)return;
+ const fixtures=[...new Set([...furniture,...extra])].filter(g=>g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind));
+ let purchases=0,changed=false;
+ for(const g of fixtures){
+  if(shelfStock(g)>=9)continue;
+  const sku=skuFor(g),kind=fixtureKind(g),product=sku?skuCatalog[sku]:productTypes[kind];
+  if(!product)continue;
+  const available=sku?Number(skuWarehouse[sku]||0):Number(categoryStock[kind]||0);
+  if(available<3&&purchases<3&&cash-Number(product.cost)>=3000){
+   cash-=product.cost;expenses+=product.cost;
+   if(sku)skuWarehouse[sku]=(skuWarehouse[sku]||0)+product.units;
+   else categoryStock[kind]=(categoryStock[kind]||0)+product.units;
+   purchases++;changed=true;
+  }
+  if(shelfStock(g)<9&&refillFixture(g))changed=true;
+ }
+ if(changed){inventory=Object.values(categoryStock).reduce((a,b)=>a+Math.max(0,Number(b)||0),0);saveProducts();saveSkus();save();refreshBusiness();if(typeof refreshShortageDetails==='function')refreshShortageDetails()}
+}
+setInterval(autoManageStock,5500);
+function moveWorker(dt){
+ if(!worker)return;worker.person.visible=staff;if(!staff)return;
+ workerTimer-=dt;
+ if(workerStage==='idle'&&workerTimer<=0){const targets=availableFixtureTargets().filter(o=>shelfStock(o.fixture)<8&&(skuFor(o.fixture)?(skuWarehouse[skuFor(o.fixture)]||0)>0:categoryStock[o.kind]>0)&&route(worker.person.position,o).reached);const spot=targets.length?targets[Math.floor(Math.random()*targets.length)]:{x:3.1,z:1.2,kind:'food'};workerStage='walking';workerTimer=7;worker.workGoal=spot;setDestination(worker,spot.x,spot.z)}
+ if(workerStage==='walking'&&(worker.path.length===0||workerTimer<=0)){const goal=worker.workGoal;const reached=goal&&Math.hypot(worker.person.position.x-goal.x,worker.person.position.z-goal.z)<1.1;if(!reached&&workerTimer>0){setDestination(worker,goal.x,goal.z)}else{workerStage=reached?'stocking':'idle';workerTimer=reached?Math.max(.65,2.6-workerLevel*.35):2}}
+ if(workerStage==='stocking'&&workerTimer<=0){const kind=worker.workGoal?.kind||'food';if(worker.workGoal?.fixture&&refillFixture(worker.workGoal.fixture)){spawnWorkEffect(worker.workGoal.fixture.position,'stock');save();hud('補貨員完成貨架補貨')}else if((worker.workGoal?.fixture&&skuFor(worker.workGoal.fixture)?skuWarehouse[skuFor(worker.workGoal.fixture)]:categoryStock[kind])===0){hud('倉庫缺貨，請先進貨')}workerStage='returning';workerTimer=0;setDestination(worker,3.1,1.2)}
+ if(workerStage==='returning'&&(worker.path.length===0||workerTimer<=-7)){workerStage='idle';workerTimer=4}
+ if(workerStage==='walking'||workerStage==='returning'){
+ const p=worker.person,n=worker.path[0];if(n){const dx=n.x-p.position.x,dz=n.z-p.position.z,d=Math.hypot(dx,dz);
+ if(d<.17)worker.path.shift();else{const step=Math.min(d,dt*(1.05+workerLevel*.22));const nx=p.position.x+dx/d*step,nz=p.position.z+dz/d*step;if(!obstacle(nx,nz)&&!customers.some(c=>c.mode!=='street'&&Math.hypot(c.person.position.x-nx,c.person.position.z-nz)<.65)){p.position.x=nx;p.position.z=nz;p.rotation.y=Math.atan2(dx,dz);worker.repath=0}else {worker.repath=(worker.repath||0)+dt;if(worker.repath>.8){worker.repath=0;setDestination(worker,worker.workGoal?.x??3.1,worker.workGoal?.z??1.2)}}}}}
+}
+// V73: visible stocking work, cashier scanning and payment flashes.
+const workEffects=[];
+function spawnWorkEffect(pos,kind){const g=new THREE.Group();g.position.copy(pos);g.position.y=1.3;scene.add(g);const color=kind==='stock'?0x6cf5bd:0xffd46d;for(let i=0;i<3;i++){const m=new THREE.Mesh(new THREE.BoxGeometry(.16,.2,.1),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.9}));m.position.set((i-1)*.22,i*.14,0);g.add(m)}workEffects.push({g,age:0})}
+function animateWorkEffects(dt,now){for(let i=workEffects.length-1;i>=0;i--){const e=workEffects[i];e.age+=dt;e.g.position.y+=dt*.42;e.g.rotation.y+=dt*2.2;e.g.children.forEach(m=>m.material.opacity=Math.max(0,1-e.age/1.15));if(e.age>1.15){scene.remove(e.g);e.g.children.forEach(m=>{m.geometry.dispose();m.material.dispose()});workEffects.splice(i,1)}}if(staff&&worker&&worker.person){const limbs=worker.person.userData.limbs||[];if(workerStage==='stocking'){limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(now*.012+i*Math.PI)*.65})}else if(workerStage==='walking'||workerStage==='returning'){limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(now*.009+i*Math.PI)*.4})}else limbs.forEach(l=>{if(l)l.rotation.x*=.85})}}
+function spawn(){if(!template||customers.length>=Math.min(10,6+Math.floor(publicity/3)))return;if(customers.some(c=>(c.mode==='enter'||c.mode==='exit')&&Math.abs(c.person.position.x)<1.5&&c.person.position.z>4.4))return;if(customers.some(c=>c.mode!=='street'&&Math.hypot(c.person.position.x,c.person.position.z-8.2)<2.0))return;if(customers.filter(c=>c.mode==='queue'||c.mode==='pay').length>=3)return;const person=addCharacterDetails(makeFallbackPerson());person.userData.limbs=['leftLeg','rightLeg','leftArm','rightArm'].map(n=>person.getObjectByName(n));person.position.set(0,0,8.2);scene.add(person);const shelf=Math.floor(Math.random()*4),c={person,mode:'enter',target:new THREE.Vector3(),path:[],wait:0,speed:1.25,walk:0,cart:null,shoppingTime:1.5,shelf,visited:0,maxVisits:2+Math.floor(Math.random()*2),stuckFor:0,phaseTime:0,checkoutTime:0};customers.push(c);setDestination(c,0,4.8)}
+function lineup(){if(typeof updateQueue==='function')updateQueue()}
+function pay(c){const lane=c.checkoutLane||0;if(laneCustomers(lane)[0]!==c||!checkoutLanes[lane].staff())return;queue.splice(queue.indexOf(c),1);if(c.cart&&c.selectedKind&&shelfStock(c.selectedFixture)>0){const kind=c.selectedKind;c.selectedFixture.userData.shelfStock--;saveShelfStock();categorySold[kind]++;const sku=skuFor(c.selectedFixture);if(sku){skuSold[sku]=(skuSold[sku]||0)+1;saveSkus()}sales++;const revenue=Math.round((price+productTypes[kind].bonus)*1.65);cash+=revenue;earnings+=revenue;recordFinance('income','商品結帳',revenue);saveProducts();if(c.cart.parent)c.cart.parent.remove(c.cart);c.cart=null;showCustomerStars(c);showCashierCoins();hud('結帳成功')}else {lastShortageReason=!c.cart?'顧客沒有拿到商品或無法到達貨架':!c.selectedFixture?'沒有指定貨架':shelfStock(c.selectedFixture)===0?'結帳前貨架售完':'結帳狀態異常';hud('未完成購物：'+lastShortageReason);refreshShortageDetails()}save();c.mode='exit';c.phaseTime=0;if(typeof npcTarget==='function')npcTarget(c,0,8.1);else setDestination(c,0,8.1);lineup()}
+function showCashierCoins(){if(!cashierPerson)return;const g=new THREE.Group();g.position.y=2.55;cashierPerson.add(g);const coins=[];for(let i=0;i<3;i++){const m=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.045,12),new THREE.MeshBasicMaterial({color:0xffd346,transparent:true,opacity:1}));m.rotation.x=Math.PI/2;g.add(m);coins.push(m)}const start=performance.now();function tick(now){if(!g.parent)return;const t=(now-start)/1000;for(let i=0;i<coins.length;i++){const c=coins[i];c.position.set((i-1)*.36,Math.sin(t*6+i)*.17+t*.23,.08);c.rotation.z=t*6+i;c.material.opacity=Math.max(0,1-t/2.5)}if(t<2.5)requestAnimationFrame(tick);else{g.parent?.remove(g);coins.forEach(c=>{c.geometry.dispose();c.material.dispose()})}}requestAnimationFrame(tick)}
+function showCustomerStars(c){if(!c?.person)return;const group=new THREE.Group();group.position.set(0,2.7,0);c.person.add(group);const stars=[];for(let i=0;i<5;i++){const mesh=new THREE.Mesh(new THREE.OctahedronGeometry(.18,0),new THREE.MeshBasicMaterial({color:[0xffdc50,0xffef91,0xffbf38][i%3],transparent:true,opacity:1}));group.add(mesh);stars.push(mesh)}const started=performance.now();function tick(now){if(!group.parent)return;const t=(now-started)/1000;stars.forEach((m,i)=>{const a=i*Math.PI*2/5+t*2.6;m.position.set(Math.cos(a)*(.3+t*.13),Math.sin(t*8+i)*.09,Math.sin(a)*.23);m.rotation.y=t*5+i;m.material.opacity=Math.max(0,1-t/2.6)});if(t<2.6)requestAnimationFrame(tick);else{group.parent?.remove(group);stars.forEach(m=>{m.geometry.dispose();m.material.dispose()})}}requestAnimationFrame(tick)}
+for(let i=0;i<3;i++)spawn();document.getElementById('npc').onclick=()=>{if(cash<350)return hud('廣告費不足');cash-=350;expenses+=350;publicity=Math.min(12,publicity+2);save();hud('廣告已刊登，來客量逐漸增加')};document.getElementById('price').onclick=()=>{price=price===49?59:price===59?69:39;save();hud('商品售價調整為 $'+price)};document.getElementById('cashier').onclick=()=>{if(cashierHired)return hud('已有收銀員');if(cash<900)return hud('雇用費不足');cash-=900;cashierHired=true;save();hud('收銀員已到櫃檯')};document.getElementById('buy').onclick=()=>{if(cash<150)return hud('現金不足');cash-=150;expenses+=150;categoryStock.food+=10;inventory=Object.values(categoryStock).reduce((a,b)=>a+b,0);saveProducts();save();hud('食品進貨 +10')};const hireButton=document.getElementById('hire');function updateHireButton(){hireButton.textContent=restockerCount>=4?'✅ 補貨員已達 4 人':'🧑‍🔧 雇用補貨員 $1,200（'+restockerCount+'/4）';hireButton.disabled=restockerCount>=4}hireButton.onclick=()=>{if(restockerCount>=4)return hud('補貨員最多 4 人');if(cash<1200)return hud('現金不足 $1,200');cash-=1200;expenses+=1200;restockerCount++;staff=true;localStorage.setItem('store-v133-restockers',String(restockerCount));syncRestockers();save();updateHireButton();hud('補貨員已增加至 '+restockerCount+' 人')};updateHireButton();document.getElementById('save').onclick=()=>{save();hud('進度已儲存')};document.getElementById('reset').onclick=()=>{camera.position.set(13,14,17);orbit.target.set(0,.8,0);orbit.update()};document.getElementById('quality').onclick=()=>{renderer.setPixelRatio(1);sunlight.castShadow=false;renderer.shadowMap.enabled=false;msg.textContent='已切換低畫質，減少 iPhone 負擔'};let planActive=false,planPos=null,planRotation=0,planOldCamera=null,planOldTarget=null;
+function resize(){let w=Math.max(1,stage.clientWidth),h=Math.max(1,stage.clientHeight);camera.aspect=w/h;camera.fov=w<h?Math.min(65,42+(h/w-1)*12):42;camera.updateProjectionMatrix();renderer.setSize(w,h);if(planActive){const width=13+leftExtension*2.7,depth=12+(storeLevel-1)*3,portrait=w<h,tan=Math.tan(THREE.MathUtils.degToRad(camera.fov)/2);const distance=Math.max(16,width/(2*tan*camera.aspect*.82),depth/(2*tan*(portrait?.69:.82)));camera.position.set(0,distance,-(storeLevel-1)*1.5+.01);camera.lookAt(0,0,-(storeLevel-1)*1.5)}}window.addEventListener('resize',resize);resize();let prev=performance.now();// NPC navigation: one path planner, distinct shopping stations and collision-safe movement.
+// Derive browsing positions from the current fixture positions, not fixed map coordinates.
+const fixtureKinds=['food','snack','food','snack'];
+function fixtureKind(g){if(g.userData.productKind)return g.userData.productKind;if(g===fridge||(g.userData.kind==='fridge'||g.userData.kind==='freezer'))return 'drink';const i=originalFixtures.indexOf(g);return i>=0?fixtureKinds[i%4]:'food'}
+function fixtureStops(g){const p=g.position;const offsets=[[0,1.65],[0,-1.65],[-1.65,0],[1.65,0],[0,2.1],[0,-2.1]];return offsets.map(([dx,dz])=>({x:p.x+dx,z:p.z+dz})).filter(q=>!obstacle(q.x,q.z))}
+function availableFixtureTargets(){return [...furniture,...extra].filter(g=>g.visible!==false&&(['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))).flatMap(g=>fixtureStops(g).map(p=>({...p,kind:fixtureKind(g),fixture:g})))}
+
+const fixtureConfigKey='store-v40-fixture-categories';
+function fixtureId(g){const i=originalFixtures.indexOf(g);return i>=0?'original-'+i:'extra-'+extra.indexOf(g)}
+function loadFixtureKinds(){try{const cfg=JSON.parse(localStorage.getItem(fixtureConfigKey)||'{}');for(const g of [...furniture,...extra]){const k=cfg[fixtureId(g)];if(['food','drink','snack'].includes(k))g.userData.productKind=k}}catch(e){}}
+function saveFixtureKinds(){const cfg={};for(const g of [...furniture,...extra])if(g.userData.productKind)cfg[fixtureId(g)]=g.userData.productKind;try{localStorage.setItem(fixtureConfigKey,JSON.stringify(cfg))}catch(e){}}
+loadFixtureKinds();
+// Decorative product facings: display only on active shelves, tied to live category inventory.
+const displayFacings=new Map();
+// V75: SKU package art and stock status labels; cached canvas textures for mobile performance.
+const skuTextureCache=new Map();
+function skuPackageTexture(id){if(skuTextureCache.has(id))return skuTextureCache.get(id);const item=skuCatalog[id];if(!item)return null;const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;const ctx=canvas.getContext('2d');ctx.fillStyle='#fdfaf2';ctx.fillRect(0,0,256,256);ctx.fillStyle='#'+item.color.toString(16).padStart(6,'0');ctx.fillRect(0,0,256,85);ctx.fillStyle='#193e4a';ctx.font='bold 54px sans-serif';ctx.textAlign='center';ctx.fillText(item.label.split(' ')[0],128,63);ctx.font='bold 25px sans-serif';ctx.fillText(item.label.split(' ').slice(1).join(' '),128,145);ctx.fillStyle='#e2a65a';ctx.fillRect(24,180,208,9);ctx.fillStyle='#597781';ctx.font='20px sans-serif';ctx.fillText('FRESH · DAILY',128,223);const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());skuTextureCache.set(id,tex);return tex}
+const fixtureLabels=new WeakMap();
+function updateFixtureLabel(g){if(!g||!['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))return;let label=fixtureLabels.get(g);if(!label){const canvas=document.createElement('canvas');canvas.width=256;canvas.height=96;const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;const mesh=new THREE.Mesh(new THREE.PlaneGeometry(1.05,.39),new THREE.MeshBasicMaterial({map:texture,transparent:true,depthWrite:false,side:THREE.DoubleSide}));mesh.position.set(0,1.63,.47);g.add(mesh);label={canvas,texture,mesh,last:''};fixtureLabels.set(g,label)}const sku=skuFor(g),stock=shelfStock(g),value=(sku?skuCatalog[sku].label:'綜合商品')+'|'+stock;if(label.last===value)return;label.last=value;const ctx=label.canvas.getContext('2d');ctx.clearRect(0,0,256,96);ctx.fillStyle=stock===0?'#9f343c':stock<=3?'#b87922':'#174f53';ctx.fillRect(0,0,256,96);ctx.fillStyle='#ffffff';ctx.textAlign='center';ctx.font='bold 25px sans-serif';ctx.fillText(sku?skuCatalog[sku].label:'綜合商品',128,38);ctx.font='bold 21px sans-serif';ctx.fillText(stock===0?'缺貨 · 請補貨':'架上 '+stock+' 件',128,73);label.texture.needsUpdate=true}
+function buildFacings(g){if(displayFacings.has(g))return;const items=[];const kind=fixtureKind(g);const colors={food:[0xffc46c,0xf58c70],drink:[0x63c7e5,0x9ce2d0],snack:[0xe5a4d8,0xffd279]}[kind]||[0xf6b76e,0x8ac7d2];const wide=g.userData.original&&g.userData.kind==='rack';const count=wide?12:6;for(let i=0;i<count;i++){const row=Math.floor(i/(count/2)),col=i%(count/2),x=(col-(count/2-1)/2)*(wide?.27:.23),y=.43+row*.49,z=['fridge','freezer'].includes(g.userData.kind)?.49:.37;const mat=material(colors[i%2],.05,.35);const p=new THREE.Group();p.position.set(x,y,z);g.add(p);if(kind==='drink'){cylinder(.09,.09,.3,mat,0,0,0,p);cube(.15,.055,.18,mats.white,0,.07,.095,p)}else{roundedBox(.19,.29,.16,.03,mat,0,0,0,p);cube(.14,.055,.018,mats.white,0,.04,.092,p)}items.push(p)}displayFacings.set(g,items)}
+function refreshFacings(){for(const g of [...furniture,...extra]){if(g.visible===false||!['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))continue;buildFacings(g);const items=displayFacings.get(g),count=Math.min(items.length,shelfStock(g)),sku=skuFor(g);items.forEach((p,i)=>{p.visible=i<count;if(sku){const color=skuCatalog[sku].color;p.traverse(o=>{if(o.isMesh&&o.material&&o.material.color&&o.material!==mats.white)o.material.color.setHex(color)});let front=p.userData.skuFront;if(!front){front=new THREE.Mesh(new THREE.PlaneGeometry(.16,.18),new THREE.MeshBasicMaterial({transparent:true,side:THREE.DoubleSide,depthWrite:false}));front.position.set(0,.01,.11);p.add(front);p.userData.skuFront=front}if(p.userData.currentSku!==sku){front.material.map=skuPackageTexture(sku);front.material.needsUpdate=true;p.userData.currentSku=sku}front.visible=true}else if(p.userData.skuFront)p.userData.skuFront.visible=false});updateFixtureLabel(g)}}
+const shelfStockKey='store-v59-shelf-stock';let savedShelfStock={};try{savedShelfStock=JSON.parse(localStorage.getItem(shelfStockKey)||'{}')||{}}catch(e){}
+function shelfStock(g){if(!g)return 0;if(!Number.isFinite(g.userData.shelfStock))g.userData.shelfStock=Math.max(0,Number(savedShelfStock[fixtureId(g)])||0);return g.userData.shelfStock}
+function saveShelfStock(){const data={};for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))data[fixtureId(g)]=shelfStock(g);try{localStorage.setItem(shelfStockKey,JSON.stringify(data))}catch(e){}}
+function refillFixture(g){if(!g||g.visible===false)return false;const sku=skuFor(g),kind=fixtureKind(g),available=sku?(skuWarehouse[sku]||0):(categoryStock[kind]||0),amount=Math.min(Math.max(0,12-shelfStock(g)),Math.max(0,available));if(!amount)return false;g.userData.shelfStock=shelfStock(g)+amount;if(sku){skuWarehouse[sku]-=amount;saveSkus()}else{categoryStock[kind]-=amount;inventory=Object.values(categoryStock).reduce((a,b)=>a+b,0);saveProducts()}saveShelfStock();refreshFacings();return true}
+for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind)&&savedShelfStock[fixtureId(g)]===undefined)refillFixture(g);
+// Apply saved product-to-shelf assignments only after all fixtures and display data exist.
+for(const g of [...furniture,...extra]){const id=skuAssignments[fixtureId(g)];if(skuCatalog[id]){g.userData.skuId=id;g.userData.productKind=skuCatalog[id].kind}}
+const skuShelfPanel=document.createElement('div');skuShelfPanel.style.cssText='grid-column:1/-1;background:#153c4b;padding:10px;border-radius:10px;color:#fff';
+skuShelfPanel.innerHTML='<strong>🏷️ 指定貨架商品</strong><p style="font-size:12px">貨架有商品時不可更換品項，避免庫存混淆。</p>';
+const skuShelfSelect=document.createElement('select'),skuProductSelect=document.createElement('select'),skuAssignButton=document.createElement('button'),skuRestockButton=document.createElement('button'),skuShelfInfo=document.createElement('p');
+for(const [id,label] of skuItems){const o=document.createElement('option');o.value=id;o.textContent=label;skuProductSelect.appendChild(o)}
+for(const el of [skuShelfSelect,skuProductSelect])el.style.cssText='max-width:100%;width:100%;margin:3px 0;padding:8px;border-radius:7px';
+skuAssignButton.textContent='指定商品';skuRestockButton.textContent='📦 從倉庫補貨';skuShelfPanel.append(skuShelfSelect,skuProductSelect,skuAssignButton,skuRestockButton,skuShelfInfo);
+const stockDetails=[...document.querySelectorAll('.game-menu details')].find(d=>/商品(補貨|進貨)/.test(d.querySelector('summary')?.textContent||''));stockDetails?.querySelector('.menu-buttons')?.appendChild(skuShelfPanel);
+function updateSkuShelfList(){const old=skuShelfSelect.value;skuShelfSelect.innerHTML='';for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind)){const o=document.createElement('option');o.value=fixtureId(g);o.textContent=fixtureId(g)+'｜'+(skuFor(g)?skuCatalog[skuFor(g)].label:'一般商品')+'｜架上 '+shelfStock(g);skuShelfSelect.appendChild(o)}if([...skuShelfSelect.options].some(o=>o.value===old))skuShelfSelect.value=old}
+function chosenSkuShelf(){return [...furniture,...extra].find(g=>fixtureId(g)===skuShelfSelect.value)}
+skuAssignButton.onclick=()=>{const g=chosenSkuShelf(),sku=skuProductSelect.value;if(!g)return skuShelfInfo.textContent='請先購買貨架';if(shelfStock(g)>0)return skuShelfInfo.textContent='請先將貨架售完再更換商品';g.userData.skuId=sku;g.userData.productKind=skuCatalog[sku].kind;skuAssignments[fixtureId(g)]=sku;saveSkus();saveFixtureKinds();refreshFacings();updateSkuShelfList();skuShelfInfo.textContent='已指定 '+skuCatalog[sku].label};
+skuRestockButton.onclick=()=>{const g=chosenSkuShelf();if(!g)return skuShelfInfo.textContent='請先選擇貨架';const ok=refillFixture(g);save();updateSkuShelfList();skuShelfInfo.textContent=ok?'已從倉庫補貨':'倉庫缺貨或貨架已滿'};
+skuShelfSelect.onchange=()=>{const sku=skuFor(chosenSkuShelf());if(sku)skuProductSelect.value=sku};
+const shortagePanel=document.createElement('section');shortagePanel.style.cssText='background:#102d39;color:white;padding:12px;border-radius:12px;margin-top:10px';
+const shortageTitle=document.createElement('strong');shortageTitle.textContent='📋 缺貨明細｜每座貨架';
+const shortageInfo=document.createElement('p'),shortageList=document.createElement('div'),shortageRefresh=document.createElement('button');shortageRefresh.textContent='🔄 手動更新';
+shortagePanel.append(shortageTitle,shortageInfo,shortageRefresh,shortageList);
+const shortageDetails=document.createElement('details');
+shortageDetails.className='shortage-details';
+shortageDetails.style.cssText='margin:8px 0;border:1px solid #4a8990;border-radius:12px;overflow:hidden';
+const shortageSummaryEl=document.createElement('summary');shortageSummaryEl.textContent='📋 缺貨明細';shortageSummaryEl.style.cssText='cursor:pointer;padding:14px;font-weight:bold;background:#20596d;color:white;font-size:17px';
+shortageDetails.append(shortageSummaryEl,shortagePanel);
+const menuRoot=stockDetails?.parentElement||document.querySelector('.game-menu');
+if(stockDetails&&menuRoot)stockDetails.insertAdjacentElement('afterend',shortageDetails);
+else if(menuRoot)menuRoot.prepend(shortageDetails);
+shortageDetails.addEventListener('toggle',()=>{if(shortageDetails.open)refreshShortageDetails()});
+let lastShortageReason='尚無紀錄';
+function refreshShortageDetails(){
+ shortageList.replaceChildren();const fixtures=[...new Set([...furniture,...extra])].filter(g=>g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind));
+ shortageInfo.textContent='貨架 '+fixtures.length+' 座｜空架 '+fixtures.filter(g=>shelfStock(g)===0).length+' 座｜最近缺貨原因：'+lastShortageReason;
+ for(const g of fixtures){
+ const sku=skuFor(g),kind=fixtureKind(g),p=sku?skuCatalog[sku]:productTypes[kind],wh=sku?(skuWarehouse[sku]||0):(categoryStock[kind]||0),n=shelfStock(g);
+ const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#234655;padding:8px;margin:5px 0;border-radius:8px';
+ const label=document.createElement('span');label.style.cssText='flex:1;min-width:170px';label.textContent=fixtureId(g)+'｜'+(p?.label||kind)+'｜架上 '+n+'｜倉庫 '+wh+'｜'+(n?'有貨':wh?'待補貨':'倉庫缺貨');
+ const btn=document.createElement('button');btn.textContent=wh?'📦 一鍵補貨':'🛒 進貨';btn.disabled=n>=12;
+ btn.onclick=()=>{if(wh){if(!refillFixture(g))return hud('無法補貨')}else{if(!p?.cost||!p?.units)return hud('找不到進貨資料');if(cash<p.cost)return hud('現金不足');cash-=p.cost;expenses+=p.cost;if(sku){skuWarehouse[sku]=(skuWarehouse[sku]||0)+p.units;saveSkus()}else{categoryStock[kind]+=p.units;inventory=Object.values(categoryStock).reduce((a,b)=>a+b,0);saveProducts()}}save();refreshShortageDetails();updateSkuShelfList()};
+ row.append(label,btn);shortageList.append(row);
+ }
+}
+shortageRefresh.onclick=refreshShortageDetails;
+
+stockDetails?.addEventListener('toggle',()=>{if(stockDetails.open){updateSkuShelfList();refreshShortageDetails()}});updateSkuShelfList();refreshShortageDetails();
+refreshFacings();refreshBusiness();
+const queueSpots=[[2,2],[1.25,3.05],[.15,3.05],[-.95,3.05],[-2.05,3.05],[-3.15,3.05]];
+const checkoutLanes=[{x:2,z:2,staff:()=>cashierHired},{x:-1.5,z:2.1,staff:()=>extraCashiers>=1},{x:-4,z:2.1,staff:()=>extraCashiers>=2}];
+let extraCashiers=0;try{extraCashiers=Math.max(0,Math.min(2,Number(localStorage.getItem('store-v53-cashiers'))||0))}catch(e){}
+
+function createCounter(x,z){const g=new THREE.Group();g.position.set(x,0,z-1.1);scene.add(g);roundedBox(1.5,.82,.7,.14,mats.wood,0,.42,0,g);roundedBox(1.6,.13,.8,.07,mats.white,0,.89,0,g);cube(.35,.25,.25,mats.dark,.25,1.08,-.1,g);const display=new THREE.Mesh(new THREE.PlaneGeometry(.27,.16),screenGlow);display.position.set(.25,1.1,.06);g.add(display);const cashier=makeFallbackPerson();cashier.scale.setScalar(.78);cashier.position.set(0,0,-.8);g.add(cashier);g.userData.cashierModel=cashier;return g}
+extraCounterGroups.push(createCounter(-1.5,2.1),createCounter(-4,2.1));
+try{const layouts=JSON.parse(localStorage.getItem('store-v54-counter-layout')||'null');if(Array.isArray(layouts))layouts.slice(0,2).forEach((p,i)=>{const g=extraCounterGroups[i];if(Number.isFinite(p.x)&&Number.isFinite(p.z)){g.position.set(p.x,0,p.z);g.rotation.y=Number(p.rotation)||0;checkoutLanes[i+1].x=p.x;checkoutLanes[i+1].z=p.z+1.1}})}catch(e){}
+function saveCounterLayout(){try{localStorage.setItem('store-v54-counter-layout',JSON.stringify(extraCounterGroups.map(g=>({x:g.position.x,z:g.position.z,rotation:g.rotation.y}))));localStorage.setItem('store-v53-cashiers',String(extraCashiers))}catch(e){}}
+function refreshCounters(){extraCounterGroups.forEach((g,i)=>g.visible=i<extraCashiers)}
+refreshCounters();
+const addCashierButton=document.createElement('button');addCashierButton.textContent='🧾 增設收銀台 $1,500（最多3台）';addCashierButton.onclick=()=>{if(extraCashiers>=2)return hud('已達3座收銀台上限');if(cash<1500)return hud('資金不足，需要 $1,500');cash-=1500;expenses+=1500;extraCashiers++;saveCounterLayout();refreshCounters();updateQueue();save();hud('新增第 '+(extraCashiers+1)+' 座收銀台！')};document.getElementById('cashier').parentElement.appendChild(addCashierButton);
+const checkoutEffects=[];function showCheckoutEffect(lane){const pos=checkoutLanes[lane];if(!pos)return;const g=new THREE.Group();g.position.set(pos.x,1.45,pos.z-1);scene.add(g);const ring=new THREE.Mesh(new THREE.TorusGeometry(.23,.055,6,24),new THREE.MeshBasicMaterial({color:0x7affd2,transparent:true,opacity:.95}));g.add(ring);checkoutEffects.push({g,ring,age:0})}
+function laneCustomers(i){return queue.filter(c=>c.checkoutLane===i)}
+function laneSpot(i,order){const lane=checkoutLanes[i];return {x:lane.x,z:lane.z+Math.min(order,3)*.9}}
+
+
+function npcTarget(c,x,z){c.goal={x,z};setDestination(c,x,z);c.repath=0}
+function nextShelf(c){const candidates=availableFixtureTargets().filter(o=>!customers.some(other=>other!==c&&other.mode==='shop'&&other.goal&&Math.hypot(other.goal.x-o.x,other.goal.z-o.z)<1.05));for(let i=candidates.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[candidates[i],candidates[j]]=[candidates[j],candidates[i]]}for(const choice of candidates){if(!route(c.person.position,choice).reached)continue;c.browsingKind=choice.kind;c.browsingFixture=choice.fixture;npcTarget(c,choice.x,choice.z);return}enterCheckout(c)}
+function enterCheckout(c){if(queue.includes(c))return;c.mode='queue';c.phaseTime=0;c.checkoutTime=0;const active=checkoutLanes.map((l,i)=>({i,n:laneCustomers(i).length})).filter(l=>checkoutLanes[l.i].staff()).sort((a,b)=>a.n-b.n);c.checkoutLane=active.length?active[0].i:0;queue.push(c);updateQueue()}
+function updateQueue(){queue.forEach(c=>{if(c.mode!=='pay')c.mode='queue';const lane=c.checkoutLane||0,idx=laneCustomers(lane).indexOf(c),spot=laneSpot(lane,idx);if(!c.goal||Math.hypot(c.goal.x-spot.x,c.goal.z-spot.z)>.2)npcTarget(c,spot.x,spot.z);if(idx>0)c.checkoutTime=0})}
+function walkNpc(c,dt){
+ const p=c.person;if(!c.goal)return true;
+ let next=c.path&&c.path.length?c.path[0]:null;
+ if(next&&Math.hypot(next.x-p.position.x,next.z-p.position.z)<.19){c.path.shift();next=c.path[0]||null}
+ if(!next){if(Math.hypot(p.position.x-c.goal.x,p.position.z-c.goal.z)<.55)return true;
+ c.repath=(c.repath||0)+dt;if(c.repath>.9){c.repath=0;setDestination(c,c.goal.x,c.goal.z)}return false}
+ const dx=next.x-p.position.x,dz=next.z-p.position.z,d=Math.hypot(dx,dz);if(d<.001)return false;
+ const step=Math.min(d,dt*(c.speed||1.15)),nx=p.position.x+dx/d*step,nz=p.position.z+dz/d*step;
+ const blocked=obstacle(nx,nz)||customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-nx,o.person.position.z-nz)<(c.mode==='queue'?.52:.7))||(staff&&worker&&Math.hypot(worker.person.position.x-nx,worker.person.position.z-nz)<.58);
+ if(blocked){c.repath=(c.repath||0)+dt;c.stall=(c.stall||0)+dt;if(c.repath>1.0){c.repath=0;const r=route(p.position,c.goal);c.path=r.path;c.blocked=false}if(c.stall>1.25&&c.stall<2.2){const dx2=next.x-p.position.x,dz2=next.z-p.position.z;for(const side of [customers.indexOf(c)%2?1:-1,customers.indexOf(c)%2?-1:1]){const length=Math.hypot(dx2,dz2)||1,px=p.position.x+(-dz2/length)*side*.32,pz=p.position.z+(dx2/length)*side*.32;if(!obstacle(px,pz)&&!customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-px,o.person.position.z-pz)<.5)){p.position.x=px;p.position.z=pz;break}}}if(c.stall>2.2){const side=(customers.indexOf(c)%2?1:-1);for(const [ox,oz] of [[side*.55,0],[0,side*.55],[-side*.55,0],[0,-side*.55]]){const px=p.position.x+ox,pz=p.position.z+oz;if(!obstacle(px,pz)&&!customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-px,o.person.position.z-pz)<.52)){p.position.x=px;p.position.z=pz;c.stall=0;setDestination(c,c.goal.x,c.goal.z);break}}}// Doorway is a narrow passage: resolve head-on deadlocks by yielding the path.
+if(c.stall>3.2&&(c.mode==='enter'||c.mode==='exit')&&Math.abs(p.position.x)<1.6&&p.position.z>4.3){
+ const others=customers.filter(o=>o!==c&&o.mode!=='street'&&Math.abs(o.person.position.x)<1.6&&o.person.position.z>4.2&&o.person.position.z<8.6);
+ const priority=others.every(o=>o.mode!==c.mode||customers.indexOf(c)<customers.indexOf(o));
+ if(priority){const z=c.mode==='enter'?4.7:7.75;if(!obstacle(0,z)&&!customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x,o.person.position.z-z)<.58)){p.position.set(0,0,z);c.stall=0;setDestination(c,c.goal.x,c.goal.z)}}
+}
+if(c.stall>5&&c.mode==='queue'){c.stall=0;updateQueue()}if(c.stall>5&&c.mode==='shop'){c.stall=0;c.phaseTime=12}else if(c.stall>8&&c.mode==='enter'){c.stall=0;c.phaseTime=13}else if(c.stall>9&&c.mode==='exit'){c.stall=0;c.phaseTime=14}return false}c.stall=0;
+ c.repath=0;p.position.x=nx;p.position.z=nz;p.rotation.y=Math.atan2(dx,dz);c.walk+=dt*8;p.position.y=Math.abs(Math.sin(c.walk))*.035;
+ const limbs=p.userData.limbs;if(Array.isArray(limbs))limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(c.walk+i*Math.PI)*.32});
+ return false
+}
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-prev)/1000);prev=now;const animTime=now*.001;animateWorkEffects(dt,now);updateLighting(dt);
+ customers.slice().forEach(c=>{
+  if(c.mode==='street'){const p=c.person,dx=c.streetTarget.x-p.position.x,dz=c.streetTarget.z-p.position.z,d=Math.hypot(dx,dz);if(d<.55){scene.remove(p);customers.splice(customers.indexOf(c),1)}else{const step=Math.min(d,dt*.9);p.position.x+=dx/d*step;p.position.z+=dz/d*step;p.rotation.y=Math.atan2(dx,dz);const limbs=p.userData.limbs||[];limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(animTime*9+i*Math.PI)*.42})}return}
+  c.phaseTime=(c.phaseTime||0)+dt;
+  if(!c.goal){if(c.mode==='enter')npcTarget(c,0,4.8);else if(c.mode==='shop')nextShelf(c);else if(c.mode==='exit')npcTarget(c,0,8.1)}
+  const arrived=walkNpc(c,dt);
+  if(c.mode==='enter'&&(arrived||c.phaseTime>12)){c.mode='shop';c.phaseTime=0;nextShelf(c)}
+  else if(c.mode==='shop'&&(arrived||c.phaseTime>11)){
+    if(!c.browse){c.browse=1.4+Math.random()*1.2}
+    if(arrived)c.browse-=dt;else if(c.phaseTime>11)c.browse=0;
+    if(c.browse<=0||c.phaseTime>11){const reachedShelf=arrived;c.browse=0;c.visited++;c.phaseTime=0;
+      if(c.visited<c.maxVisits)nextShelf(c);
+      else{if(!c.cart){const kind=c.browsingKind;if(reachedShelf&&kind&&shelfStock(c.browsingFixture)>0){c.selectedKind=kind;c.selectedFixture=c.browsingFixture;const color={food:0xf0bb6e,drink:0x65c7de,snack:0xd39de8}[kind];const item=new THREE.Mesh(new THREE.BoxGeometry(.2,.22,.16),material(color));item.position.set(.4,1.05,.25);c.person.add(item);c.cart=item}}enterCheckout(c)}
+    }
+  }
+  else if(c.mode==='exit'&&(arrived||c.phaseTime>13)){c.mode='street';c.streetTarget=new THREE.Vector3(Math.random()<.5?-16:16,0,8.3)}
+ });
+ for(let lane=0;lane<checkoutLanes.length;lane++){if(!checkoutLanes[lane].staff())continue;const first=laneCustomers(lane)[0];if(!first)continue;const spot=laneSpot(lane,0);const atCounter=Math.hypot(first.person.position.x-spot.x,first.person.position.z-spot.z)<.9;first.checkoutTime=(first.checkoutTime||0)+(atCounter?dt:dt*.22);if(first.checkoutTime>3.5){showCheckoutEffect(lane);spawnWorkEffect(first.person.position,'pay');const bought=!!first.cart&&!!first.selectedKind&&shelfStock(first.selectedFixture)>0;pay(first);if(bought){servedToday++;reviewCount++;reviewTotal+=Math.max(1,Math.min(5,Math.round(4+(happy-70)/35)));happy=Math.min(100,happy+1)}else happy=Math.max(0,happy-4);updateQueue();try{localStorage.setItem('store-v40-reputation',JSON.stringify({day,servedToday,happy,reviewCount,reviewTotal}))}catch(e){}}}
+ for(let i=checkoutEffects.length-1;i>=0;i--){const fx=checkoutEffects[i];fx.age+=dt;fx.g.position.y+=dt*.5;fx.ring.scale.setScalar(1+fx.age*1.7);fx.ring.material.opacity=Math.max(0,1-fx.age*2);if(fx.age>.55){scene.remove(fx.g);fx.ring.geometry.dispose();fx.ring.material.dispose();checkoutEffects.splice(i,1)}}aiClock+=dt;if(aiClock>1){aiClock=0;refreshBusiness();refreshGameHud()}for(let i=0;i<extraCounterGroups.length;i++){const g=extraCounterGroups[i];if(!g.visible)continue;const model=g.userData.cashierModel;if(!model)continue;const busy=laneCustomers(i+1).length>0;const limbs=model.userData.limbs||[];for(const j of [2,3])if(limbs[j])limbs[j].rotation.x=busy?-.4+Math.sin(animTime*8+i)*.34:Math.sin(animTime*1.4+i)*.08;model.rotation.y=busy?Math.sin(animTime*2+i)*.12:0}const mainArms=cashierPerson.userData.limbs||[];for(const j of [2,3])if(mainArms[j])mainArms[j].rotation.x=laneCustomers(0).length?-.45+Math.sin(animTime*9+j)*.35:0;
+ // Checkout is served one at a time, independent of unreachable exact counter coordinates.
+// Checkout handled by the customer state machine above.
+restockTime+=dt;moveWorker(dt);updateExtraRestockers(dt);if(worker?.person){const wl=worker.person.userData.limbs||[];for(const j of [2,3])if(wl[j])wl[j].rotation.x=workerStage==='stocking'?-0.75+Math.sin(animTime*10+j)*.45:workerStage==='walking'?Math.sin(animTime*8+j*Math.PI)*.4:0;worker.person.position.y=workerStage==='walking'?Math.abs(Math.sin(animTime*8))*.035:0}const nearDoor=customers.some(c=>c.person&&Math.abs(c.person.position.x)<1.8&&c.person.position.z>4.25&&c.person.position.z<9.5);cashierPerson.visible=cashierHired;cashierWalk+=dt;cashierPerson.rotation.y=Math.sin(cashierWalk*.8)*.25;cashierPerson.position.x=4.6+Math.sin(cashierWalk*.5)*.18;doorOpening=THREE.MathUtils.damp(doorOpening,nearDoor?1:0,nearDoor?6:2.8,dt);doorLeft.position.set(-.55-doorOpening*1.08,0,6.35);doorRight.position.set(.55+doorOpening*1.08,0,6.35);doorLeft.rotation.set(0,0,0);doorRight.rotation.set(0,0,0);for(const w of walkers){w.g.position.x+=dt*w.speed;if(w.g.position.x>18)w.g.position.x=-18;if(w.g.position.x< -18)w.g.position.x=18}for(const t of traffic){const v=vehicleAgents.find(a=>a.car===t.car);moveVehicleSafe(v,dt*t.speed,0);if(t.car.position.x>21&&vehicleClear(v,-42,0))t.car.position.x=-21;if(t.car.position.x< -21&&vehicleClear(v,42,0))t.car.position.x=21}updateBranches(dt);pedestrianPopulation(dt);animateCity(dt,now);animateAdvancedCity(dt,now);const isNight=nightOverride==='night'||(nightOverride==='auto'&&(new Date().getHours()>=18||new Date().getHours()<6));for(const lamp of nightStreetLamps)lamp.intensity=isNight?1.3:0;for(const lamp of storeNightLights)lamp.intensity=isNight?2.5:0;for(const mat of cityWindowMaterials)mat.emissiveIntensity=isNight?.62:0;orbit.update();renderer.render(scene,camera)}
+
+/* V70: in-scene 3D furniture placement. No separate abstract grid screen. */
+const planTypes=[['rack','🛒 商品架',300],['fridge','🧊 冷藏櫃',500],['snack','🍫 零食架',340],['bakery','🥐 麵包架',380],['drinks','🥤 飲料架',370],['freezer','🍦 冷凍櫃',580],['plant','🌿 盆栽',120],['rug','🟨 地毯',90]];
+// V74: compact landscape status HUD, independent of the legacy management panel.
+const gameHud=document.createElement('div');gameHud.id='gameHud';gameHud.innerHTML='<span id="hudCash">💰 $0</span><span id="hudDay">📅 1</span><span id="hudSales">🛍️ 0</span><span id="hudMood">😊 100%</span>';document.body.appendChild(gameHud);
+const lightSwitch=document.createElement('button');lightSwitch.textContent='🌤️ 日夜：自動';lightSwitch.title='切換白天／夜晚／自動燈光';lightSwitch.onclick=()=>{nightOverride=nightOverride==='auto'?'day':nightOverride==='day'?'night':'auto';lightSwitch.textContent='🌤️ 日夜：'+({auto:'自動',day:'白天',night:'夜晚'}[nightOverride]);try{localStorage.setItem('store-v74-light-mode',nightOverride)}catch(e){}updateLighting(.5)};lightSwitch.textContent='🌤️ 日夜：'+({auto:'自動',day:'白天',night:'夜晚'}[nightOverride]||'自動');document.querySelector('.game-menu details:last-of-type .menu-buttons')?.appendChild(lightSwitch);
+// V96 fixed modern Taiwan street theme.
+function refreshGameHud(){renderFinance();renderIncomeTasks();document.getElementById('hudCash').textContent='💰 $'+cash;document.getElementById('hudDay').textContent='📅 第 '+day+' 天';document.getElementById('hudSales').textContent='🛍️ '+sales+' 件';document.getElementById('hudMood').textContent='😊 '+happy+'%'}
+refreshGameHud();
+const planBar=document.createElement('div');planBar.id='planBar';planBar.style.cssText='display:none;position:fixed;z-index:1800;top:8px;left:50%;transform:translateX(-50%);width:min(96vw,950px);padding:9px;background:#102f40f2;border:1px solid #64d7bd;border-radius:14px;color:white;box-shadow:0 6px 30px #0007';
+planBar.innerHTML='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><strong>🛒 商店配置</strong><select id="planMode" aria-label="配置操作"><option value="buy">➕ 新增</option><option value="move">✋ 移動</option><option value="delete">🗑️ 刪除</option></select><select id="planType" aria-label="選擇設備"></select><select id="planItem" aria-label="選擇現有設備"></select><button id="planRotate">↻ 旋轉</button><button id="planConfirm">✓ 確認擺放</button><button id="planClose">✕ 完成</button></div><div id="planInfo" style="font-size:12px;margin-top:5px;color:#d0f7e8">新增：選設備後點地板；移動／刪除：先選設備。</div>';document.body.appendChild(planBar);
+const pt=document.getElementById('planType'),pm=document.getElementById('planMode'),pi=document.getElementById('planItem'),info=document.getElementById('planInfo');
+const planQuickList=document.createElement('div');planQuickList.id='planQuickList';planQuickList.style.cssText='display:none;gap:6px;flex-wrap:wrap;max-height:110px;overflow:auto;margin-top:7px';planBar.appendChild(planQuickList);
+function planRefreshQuickList(){planQuickList.style.display=pm.value==='delete'?'flex':'none';planQuickList.replaceChildren();if(pm.value!=='delete')return;planItems().forEach((g,i)=>{const b=document.createElement('button');b.type='button';b.textContent=(g.userData.kind==='rack'?'🛒 商品架':g.userData.kind==='fridge'?'🧊 冰箱':'📦 '+(g.userData.kind||'設備'))+' '+(i+1);b.style.cssText='padding:8px 10px;background:'+ (pi.value===String(i)?'#f3b36c':'#31758a')+';color:white;border:1px solid #a4dbd0;border-radius:9px;font-size:13px';b.onclick=()=>{planSelectFixture(g);planRefreshQuickList()};planQuickList.appendChild(b)});if(!planItems().length){planQuickList.textContent='目前沒有登記中的設備。';const recover=originalFixtures.filter((g,i)=>i>=4&&deletedOriginal.has(i));if(recover.length){const btn=document.createElement('button');btn.type='button';btn.textContent='↩ 恢復原始商品架（可再逐一刪除）';btn.style.cssText='padding:10px;background:#237e85;color:white;border:1px solid #a4dbd0;border-radius:9px';btn.onclick=()=>{if(!window.confirm('要恢復原始商品架嗎？不會重設現金或經營進度。'))return;for(const g of recover){const index=originalFixtures.indexOf(g);if(index<0)continue;deletedOriginal.delete(index);if(!g.parent)scene.add(g);g.visible=true;if(!furniture.includes(g))furniture.push(g);if(g.userData.kind==='rack'&&!shelves.includes(g))shelves.push(g)}saveDeletedOriginal();saveOriginal();planRefreshItems();planRefreshTiles();info.textContent='原始商品架已恢復，可從清單選取後刪除'};planQuickList.appendChild(btn)}}}
+for(const [id,name,cost] of planTypes){const o=document.createElement('option');o.value=id;o.textContent=name+' $'+cost;pt.appendChild(o)}
+const placementLayer=new THREE.Group();scene.add(placementLayer);const placementRay=new THREE.Raycaster(),placementPointer=new THREE.Vector2(),placementPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0),placementPoint=new THREE.Vector3();
+const placementTiles=[];const tileGeometry=new THREE.PlaneGeometry(.91,.91);const tileGood=new THREE.MeshBasicMaterial({color:0x26d69a,transparent:true,opacity:.33,depthWrite:false,side:THREE.DoubleSide}),tileBad=new THREE.MeshBasicMaterial({color:0xf05261,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide});
+const ghost=new THREE.Group();placementLayer.add(ghost);ghost.visible=false;
+const ghostMaterial=new THREE.MeshStandardMaterial({color:0x4fe6b3,transparent:true,opacity:.48,depthWrite:false,side:THREE.DoubleSide});
+let ghostMeshes=[];
+function ghostPart(w,h,d,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),ghostMaterial);m.position.set(x,y,z);ghost.add(m);ghostMeshes.push(m)}
+function buildGhost(){for(const m of ghostMeshes){ghost.remove(m);m.geometry.dispose()}ghostMeshes=[];const type=pt.value;if(pm.value==='move'){const source=planSelected();if(source){source.updateMatrixWorld(true);source.traverse(o=>{if(!o.isMesh||!o.geometry)return;const mesh=o.clone();mesh.geometry=o.geometry.clone();mesh.material=ghostMaterial;const local=o.getWorldPosition(new THREE.Vector3());source.worldToLocal(local);mesh.position.copy(local);mesh.rotation.copy(o.rotation);ghost.add(mesh);ghostMeshes.push(mesh)});return}}if(type==='plant'){ghostPart(.65,.65,.65,0,.95,0);ghostPart(.45,.55,.45,0,.3,0)}else if(type==='rug'){ghostPart(1.5,.06,1.2,0,.04,0)}else if(type==='fridge'||type==='freezer'){ghostPart(1.35,2.1,.85,0,1.05,0);ghostPart(1.15,1.65,.08,0,1.12,.48)}else{for(const y of [.3,.8,1.3])ghostPart(1.3,.1,.8,0,y,0);for(const x of [-.59,.59])ghostPart(.09,1.55,.78,x,.77,0);for(let i=0;i<4;i++)ghostPart(.22,.28,.25,-.45+i*.3,1.49,0)}}
+const placementCapture=document.createElement('div');placementCapture.style.cssText='display:none;position:absolute;inset:0;z-index:18;touch-action:none;cursor:crosshair';stage.appendChild(placementCapture);
+function planItems(){return [...new Set([...furniture,...extra,...originalFixtures,...extraCounterGroups.slice(0,extraCashiers)])].filter(g=>g&&g.visible!==false&&g.parent&&(originalFixtures.indexOf(g)<0||!deletedOriginal.has(originalFixtures.indexOf(g))))}
+function planSelected(){return pi.value!==''?planItems()[Number(pi.value)]||null:null}
+function planSelectFixture(g){const index=planItems().indexOf(g);if(index<0)return;pi.value=String(index);info.textContent='🗑️ 已選取 '+(g.userData.kind==='rack'?'商品架':g.userData.kind==='fridge'?'冰箱':g.userData.kind||'設備')+' '+(index+1)+'，請按「確認刪除」';planRefreshTiles();planRefreshQuickList();}
+function planScreenPick(clientX,clientY){const rect=renderer.domElement.getBoundingClientRect();let chosen=null,best=70;for(const g of planItems()){const p=new THREE.Vector3();g.getWorldPosition(p);p.y+=g.userData.kind==='rug'?.08:1;const projected=p.project(camera);if(projected.z>1||projected.z< -1)continue;const sx=rect.left+(projected.x+1)*rect.width/2,sy=rect.top+(1-projected.y)*rect.height/2;const d=Math.hypot(sx-clientX,sy-clientY);if(d<best){best=d;chosen=g}}return chosen}
+function planValid(x,z,ignore){if(x<(-6-leftExtension*2.7)||x>5.5||z>4.5||z<(-5-(storeLevel-1)*3))return false;if(Math.hypot(x-4.6,z-3.7)<2||Math.abs(x)<1.4&&z>4.7)return false;return ![...furniture,...extra,...extraCounterGroups].some(g=>g!==ignore&&g.visible!==false&&g.parent&&Math.hypot(g.position.x-x,g.position.z-z)<1.7)}
+function planRefreshItems(){const old=pi.value;pi.innerHTML='';planItems().forEach((g,i)=>{const o=document.createElement('option');o.value=i;o.textContent=(g.userData.kind||'設備')+' '+(i+1);pi.appendChild(o)});if(old!==''&&planItems()[Number(old)])pi.value=old;else if(pi.options.length)pi.selectedIndex=0;pi.style.display=(pm.value==='move'||pm.value==='delete')?'':'none';planRefreshQuickList()}
+function planRefreshTiles(){for(const tile of placementTiles)placementLayer.remove(tile);placementTiles.length=0;const ignore=pm.value==='move'?planSelected():null;const min=-6-leftExtension*2.7,max=5,zmin=-5-(storeLevel-1)*3;for(let z=zmin;z<=5;z++)for(let x=min;x<=max;x++){const tile=new THREE.Mesh(tileGeometry,planValid(x,z,ignore)?tileGood:tileBad);tile.rotation.x=-Math.PI/2;tile.position.set(x,.035,z);placementLayer.add(tile);placementTiles.push(tile)}}
+function planUpdateGhost(){if(!planPos)return;const ignore=pm.value==='move'?planSelected():null,ok=planValid(planPos.x,planPos.z,ignore);ghost.visible=true;ghost.position.set(planPos.x,.06,planPos.z);ghost.rotation.y=planRotation;ghostMaterial.color.setHex(ok?0x4fe6b3:0xff6972);info.textContent=(ok?'🟢 可擺放':'🔴 此位置不可擺放')+'｜座標 '+planPos.x+', '+planPos.z}
+function planPick(e){if(!planActive)return;
+if(pm.value==='delete'){
+ const rect=renderer.domElement.getBoundingClientRect();
+ placementPointer.set(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);
+ placementRay.setFromCamera(placementPointer,camera);
+ const hits=placementRay.intersectObjects(planItems(),true).filter(hit=>hit.object.visible!==false);
+ if(hits.length){let g=hits[0].object;while(g&&!planItems().includes(g))g=g.parent;
+ if(g){planSelectFixture(g);}}else{const groundHit=new THREE.Vector3();if(placementRay.ray.intersectPlane(placementPlane,groundHit)){let nearest=null,dist=1.3;for(const item of planItems()){const d=Math.hypot(item.position.x-groundHit.x,item.position.z-groundHit.z);if(d<dist){nearest=item;dist=d}}if(nearest){planSelectFixture(nearest);}else{const projected=planScreenPick(e.clientX,e.clientY);if(projected)planSelectFixture(projected);else info.textContent='請點選商品架，或使用下方設備按鈕選擇';}}else{const projected=planScreenPick(e.clientX,e.clientY);if(projected)planSelectFixture(projected);else info.textContent='請從下方設備按鈕選擇';}}
+ return;
+}
+const rect=renderer.domElement.getBoundingClientRect();placementPointer.set(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);placementRay.setFromCamera(placementPointer,camera);if(placementRay.ray.intersectPlane(placementPlane,placementPoint)){planPos={x:Math.round(placementPoint.x),z:Math.round(placementPoint.z)};planUpdateGhost()}}
+let planDragging=false;
+placementCapture.addEventListener('pointerdown',e=>{e.preventDefault();planDragging=true;placementCapture.setPointerCapture?.(e.pointerId);planPick(e)});
+placementCapture.addEventListener('pointermove',e=>{if(planDragging&&pm.value!=='delete')planPick(e)});
+placementCapture.addEventListener('pointerup',()=>{planDragging=false});
+placementCapture.addEventListener('pointercancel',()=>{planDragging=false});
+function planConfirm(){
+if(pm.value==='delete'){
+ const g=planSelected();if(!g)return info.textContent='請先選擇要刪除的設備';
+ if(!window.confirm('確定要刪除這個設備嗎？此操作無法復原。'))return;
+ if(g.userData.original){const index=originalFixtures.indexOf(g);if(index<0)return info.textContent='找不到原始設備資料，已取消刪除以保護存檔';const fi=furniture.indexOf(g);if(fi>=0)furniture.splice(fi,1);const si=shelves.indexOf(g);if(si>=0)shelves.splice(si,1);if(g===fridge)fridge.visible=false;g.parent?.remove(g);if(index>=0)deletedOriginal.add(index);saveOriginal();saveDeletedOriginal()}
+ else if(extra.includes(g)){const index=extra.indexOf(g);extra.splice(index,1);g.parent?.remove(g);cash+=Math.floor((prices[g.userData.kind]||0)/2);saveExtra()}
+ else return info.textContent='此設備不可從 3D 配置刪除';
+ saveFixtureKinds();save();planPos=null;ghost.visible=false;planRefreshItems();planRefreshTiles();info.textContent='🗑️ 已刪除設備';return;
+}
+if(!planPos)return info.textContent='請先點選商店地板';const moving=pm.value==='move',g=moving?planSelected():null;if(!planValid(planPos.x,planPos.z,g))return info.textContent='🔴 這個位置不能擺放';if(moving){if(!g)return info.textContent='沒有可移動的設備';moveFixtureWithContents(g,planPos.x,planPos.z);g.rotation.y=planRotation;if(extraCounterGroups.includes(g)){const lane=extraCounterGroups.indexOf(g)+1;checkoutLanes[lane].x=g.position.x;checkoutLanes[lane].z=g.position.z+1.1;saveCounterLayout();updateQueue()}saveOriginal();saveExtra();save();info.textContent='✓ 設備已移動'}else{const [type,name,cost]=planTypes.find(v=>v[0]===pt.value);if(cash<cost)return info.textContent='現金不足，需 $'+cost;const created=addRack(planPos.x,planPos.z,type,planRotation);if(['snack','bakery','drinks'].includes(type)){created.userData.productKind=type==='snack'?'snack':type==='bakery'?'food':'drink';saveFixtureKinds()}cash-=cost;saveExtra();save();info.textContent='✓ 已購買 '+name}planRefreshItems();planRefreshTiles();buildGhost();ghost.visible=false;planPos=null}
+function closePlan(){planActive=false;planDragging=false;planBar.style.display='none';placementCapture.style.display='none';placementLayer.visible=false;ghost.visible=false;orbit.enabled=true;if(planOldCamera&&planOldTarget){camera.position.copy(planOldCamera);orbit.target.copy(planOldTarget);camera.updateProjectionMatrix();orbit.update()}document.body.classList.remove('plan-active','plan-tools-expanded');refreshBusiness();window.dispatchEvent(new Event('resize'))}
+function openPlan(type='rack',mode='buy'){placing=false;selectedFurniture=null;document.body.classList.remove('menu-open');planOldCamera=camera.position.clone();planOldTarget=orbit.target.clone();planActive=true;planPos=null;planRotation=0;closeConfigurationMenu();document.body.classList.remove('plan-tools-expanded');planBar.style.display='block';placementCapture.style.display='block';placementLayer.visible=true;document.body.classList.add('plan-active');pt.value=type;pm.value=mode;planRefreshItems();updatePlanDeleteUI();planRefreshTiles();buildGhost();ghost.visible=false;orbit.enabled=false;const w=13+sideLevel*5,d=12+(storeLevel-1)*3;resize();const portrait=stage.clientWidth<stage.clientHeight;const fovRadians=THREE.MathUtils.degToRad(camera.fov);const fitWidth=w/(2*Math.tan(fovRadians/2)*camera.aspect*.82);const fitDepth=d/(2*Math.tan(fovRadians/2)*(portrait?.69:.82));const distance=Math.max(16,fitWidth,fitDepth);const centerZ=-(storeLevel-1)*1.5;camera.position.set(0,distance,centerZ+.01);orbit.target.set(0,0,centerZ);camera.lookAt(orbit.target);info.textContent='請直接點選 3D 商店地板選位置';window.dispatchEvent(new Event('resize'))}
+pt.onchange=()=>{planPos=null;ghost.visible=false;buildGhost()};function updatePlanDeleteUI(){document.getElementById('planConfirm').textContent=pm.value==='delete'?'🗑️ 確認刪除':pm.value==='move'?'✓ 確認移動':'✓ 確認擺放';pt.style.display=pm.value==='delete'?'none':'';document.getElementById('planRotate').style.display=pm.value==='delete'?'none':'';ghost.visible=false;if(pm.value==='delete')info.textContent='🗑️ 點選商店內設備，或點下方商品架按鈕選擇，再按確認刪除';planRefreshQuickList();}
+pm.onchange=()=>{planRefreshItems();planRefreshTiles();planPos=null;ghost.visible=false;buildGhost();updatePlanDeleteUI()};pi.onchange=()=>{planRefreshTiles();planPos=null;ghost.visible=false;buildGhost();if(pm.value==='delete'){const g=planSelected();info.textContent=g?'🗑️ 已選取 '+(g.userData.kind||'設備')+'，按確認刪除':'請選擇設備'}};document.getElementById('planRotate').onclick=()=>{planRotation=(planRotation+Math.PI/2)%(Math.PI*2);planUpdateGhost()};document.getElementById('planConfirm').onclick=planConfirm;document.getElementById('planClose').onclick=closePlan;
+// V113: move equipment and shelving controls from Management into the Configuration tab.
+const configurationMenu=document.createElement('div');
+configurationMenu.id='configurationMenu';
+configurationMenu.className='game-menu';
+configurationMenu.style.display='none';
+configurationMenu.style.flexDirection='column';
+configurationMenu.style.width='100%';
+configurationMenu.style.boxSizing='border-box';
+configurationMenu.style.background='#0c2639ed';
+configurationMenu.style.padding='9px';
+configurationMenu.style.border='1px solid #4bc9b5';
+configurationMenu.style.borderRadius='14px';
+const configurationTitle=document.createElement('div');
+configurationTitle.textContent='🗺️ 商店配置';
+configurationTitle.style.cssText='font-size:18px;font-weight:800;color:white;padding:8px 4px';
+configurationMenu.appendChild(configurationTitle);
+furnitureMenu.remove();
+// V114: all furnishing controls are integrated into the 3D layout workspace instead of a second overlapping menu.
+// Unified configuration: no duplicate equipment menu or second configuration screen.
+furnitureMenu.remove();
+const configurationHint=document.createElement('p');
+configurationHint.textContent='使用上方「新增／移動／刪除」切換操作，所有設備統一在這裡管理。';
+configurationHint.style.cssText='font-size:12px;color:#d3f3ee;margin:6px 0';
+planBar.appendChild(configurationHint);
+const togglePlanTools=document.createElement('button');
+togglePlanTools.id='togglePlanTools';
+togglePlanTools.style.display='none';
+togglePlanTools.textContent='設備工具';
+togglePlanTools.onclick=()=>{};
+const planTools=document.createElement('div');
+planTools.id='planEquipmentTools';
+planTools.style.display='none';
+const open3DConfigButton=document.createElement('button');
+open3DConfigButton.textContent='🛒 開啟商店配置';
+open3DConfigButton.style.cssText='width:100%;padding:14px;border-radius:12px;background:#20b99c;color:#092f36';
+open3DConfigButton.onclick=()=>openPlan();
+configurationMenu.appendChild(open3DConfigButton);
+document.body.appendChild(configurationMenu);
+function closeConfigurationMenu(){configurationMenu.style.display='none';document.body.classList.remove('configuration-open')}
+document.getElementById('mobilePlanToggle').onclick=()=>{document.body.classList.add('mobile-immersive');document.body.classList.remove('menu-open');openPlan()};
+const originalManagementToggle=document.getElementById('mobileMenuToggle').onclick;
+document.getElementById('mobileMenuToggle').onclick=()=>{closeConfigurationMenu();originalManagementToggle()};
+const originalViewToggle=document.getElementById('mobileViewToggle').onclick;
+document.getElementById('mobileViewToggle').onclick=()=>{closeConfigurationMenu();originalViewToggle()};
+
+
+// V132: remove four fixed small kiosks shown in the shop's rear side aisles.
+// Their meshes are not in the editable fixture registry; remove only small freestanding meshes
+// around the measured kiosk coordinates, never walls, floor, fridge, cashier or other large meshes.
+function removeFourUnregisteredKiosks(){
+ const centers=[[-5.8,-1.82],[-5.8,-4.3],[5.8,-1.82],[5.8,-4.3]];
+ scene.updateMatrixWorld(true);
+ const targets=[];
+ scene.traverse(o=>{
+  if(!o.isMesh||!o.parent||!o.visible||!o.geometry||!o.geometry.boundingBox&&typeof o.geometry.computeBoundingBox!=='function')return;
+  if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();
+  const size=new THREE.Vector3();o.geometry.boundingBox.getSize(size);
+  const scale=new THREE.Vector3();o.getWorldScale(scale);size.multiply(scale);
+  const p=new THREE.Vector3();o.getWorldPosition(p);
+  if(p.y<.2||p.y>2.5||size.x>1.35||size.y>2.5||size.z>1.35)return;
+  if(centers.some(([x,z])=>Math.abs(p.x-x)<.92&&Math.abs(p.z-z)<.92))targets.push(o);
+ });
+ for(const o of targets)o.parent?.remove(o);
+}
+removeFourUnregisteredKiosks();
+// Legacy furnishing buttons were removed by the unified configuration toolbar; its mode and type selectors now own these actions.
+requestAnimationFrame(loop);let arrivalClock=0;let gameSpeed=1;const speedButton=document.createElement('button');speedButton.type='button';speedButton.textContent='⏩ 速度 1×';speedButton.style.cssText='position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));right:12px;z-index:1200;background:#123d50;color:white;border:1px solid #6dd3c2;border-radius:12px;padding:9px 12px;font:700 13px system-ui;box-shadow:0 3px 12px #0005';speedButton.onclick=()=>{gameSpeed=gameSpeed===1?2:gameSpeed===2?3:1;speedButton.textContent='⏩ 速度 '+gameSpeed+'×';hud('遊戲速度 '+gameSpeed+'×')};document.body.appendChild(speedButton);setInterval(()=>{for(let tick=0;tick<gameSpeed;tick++){gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=300;earnings+=300;hud('今日任務達成：獎勵 $300')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65*restockerCount:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,4-publicity*.24);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.98,.85*popularity+publicity*.035))spawn()}}},1000);hud('營業開始！顧客會自動上門')}catch(e){error(e)}</script></body></html>+earned)}
+}
+setInterval(autoClaimIncomeTasks,2500);
 // V95 finance reporting: baseline-based totals, no fabricated historical transactions.
 let financeBase={earnings,expenses,cash,day};let financeLedger=[];try{const saved=JSON.parse(localStorage.getItem('store-v95-finance')||'null');if(saved&&Array.isArray(saved.ledger)){financeBase=saved.base;financeLedger=saved.ledger}}catch(e){}
 function persistFinance(){try{localStorage.setItem('store-v95-finance',JSON.stringify({base:financeBase,ledger:financeLedger.slice(-120)}))}catch(e){}}
@@ -768,7 +1173,7 @@ function spawnWorkEffect(pos,kind){const g=new THREE.Group();g.position.copy(pos
 function animateWorkEffects(dt,now){for(let i=workEffects.length-1;i>=0;i--){const e=workEffects[i];e.age+=dt;e.g.position.y+=dt*.42;e.g.rotation.y+=dt*2.2;e.g.children.forEach(m=>m.material.opacity=Math.max(0,1-e.age/1.15));if(e.age>1.15){scene.remove(e.g);e.g.children.forEach(m=>{m.geometry.dispose();m.material.dispose()});workEffects.splice(i,1)}}if(staff&&worker&&worker.person){const limbs=worker.person.userData.limbs||[];if(workerStage==='stocking'){limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(now*.012+i*Math.PI)*.65})}else if(workerStage==='walking'||workerStage==='returning'){limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(now*.009+i*Math.PI)*.4})}else limbs.forEach(l=>{if(l)l.rotation.x*=.85})}}
 function spawn(){if(!template||customers.length>=Math.min(10,6+Math.floor(publicity/3)))return;if(customers.some(c=>(c.mode==='enter'||c.mode==='exit')&&Math.abs(c.person.position.x)<1.5&&c.person.position.z>4.4))return;if(customers.some(c=>c.mode!=='street'&&Math.hypot(c.person.position.x,c.person.position.z-8.2)<2.0))return;if(customers.filter(c=>c.mode==='queue'||c.mode==='pay').length>=3)return;const person=addCharacterDetails(makeFallbackPerson());person.userData.limbs=['leftLeg','rightLeg','leftArm','rightArm'].map(n=>person.getObjectByName(n));person.position.set(0,0,8.2);scene.add(person);const shelf=Math.floor(Math.random()*4),c={person,mode:'enter',target:new THREE.Vector3(),path:[],wait:0,speed:1.25,walk:0,cart:null,shoppingTime:1.5,shelf,visited:0,maxVisits:2+Math.floor(Math.random()*2),stuckFor:0,phaseTime:0,checkoutTime:0};customers.push(c);setDestination(c,0,4.8)}
 function lineup(){if(typeof updateQueue==='function')updateQueue()}
-function pay(c){const lane=c.checkoutLane||0;if(laneCustomers(lane)[0]!==c||!checkoutLanes[lane].staff())return;queue.splice(queue.indexOf(c),1);if(c.cart&&c.selectedKind&&shelfStock(c.selectedFixture)>0){const kind=c.selectedKind;c.selectedFixture.userData.shelfStock--;saveShelfStock();categorySold[kind]++;const sku=skuFor(c.selectedFixture);if(sku){skuSold[sku]=(skuSold[sku]||0)+1;saveSkus()}sales++;const revenue=price+productTypes[kind].bonus;cash+=revenue;earnings+=revenue;recordFinance('income','商品結帳',revenue);saveProducts();if(c.cart.parent)c.cart.parent.remove(c.cart);c.cart=null;showCustomerStars(c);showCashierCoins();hud('結帳成功')}else {lastShortageReason=!c.cart?'顧客沒有拿到商品或無法到達貨架':!c.selectedFixture?'沒有指定貨架':shelfStock(c.selectedFixture)===0?'結帳前貨架售完':'結帳狀態異常';hud('未完成購物：'+lastShortageReason);refreshShortageDetails()}save();c.mode='exit';c.phaseTime=0;if(typeof npcTarget==='function')npcTarget(c,0,8.1);else setDestination(c,0,8.1);lineup()}
+function pay(c){const lane=c.checkoutLane||0;if(laneCustomers(lane)[0]!==c||!checkoutLanes[lane].staff())return;queue.splice(queue.indexOf(c),1);if(c.cart&&c.selectedKind&&shelfStock(c.selectedFixture)>0){const kind=c.selectedKind;c.selectedFixture.userData.shelfStock--;saveShelfStock();categorySold[kind]++;const sku=skuFor(c.selectedFixture);if(sku){skuSold[sku]=(skuSold[sku]||0)+1;saveSkus()}sales++;const revenue=Math.round((price+productTypes[kind].bonus)*1.65);cash+=revenue;earnings+=revenue;recordFinance('income','商品結帳',revenue);saveProducts();if(c.cart.parent)c.cart.parent.remove(c.cart);c.cart=null;showCustomerStars(c);showCashierCoins();hud('結帳成功')}else {lastShortageReason=!c.cart?'顧客沒有拿到商品或無法到達貨架':!c.selectedFixture?'沒有指定貨架':shelfStock(c.selectedFixture)===0?'結帳前貨架售完':'結帳狀態異常';hud('未完成購物：'+lastShortageReason);refreshShortageDetails()}save();c.mode='exit';c.phaseTime=0;if(typeof npcTarget==='function')npcTarget(c,0,8.1);else setDestination(c,0,8.1);lineup()}
 function showCashierCoins(){if(!cashierPerson)return;const g=new THREE.Group();g.position.y=2.55;cashierPerson.add(g);const coins=[];for(let i=0;i<3;i++){const m=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,.045,12),new THREE.MeshBasicMaterial({color:0xffd346,transparent:true,opacity:1}));m.rotation.x=Math.PI/2;g.add(m);coins.push(m)}const start=performance.now();function tick(now){if(!g.parent)return;const t=(now-start)/1000;for(let i=0;i<coins.length;i++){const c=coins[i];c.position.set((i-1)*.36,Math.sin(t*6+i)*.17+t*.23,.08);c.rotation.z=t*6+i;c.material.opacity=Math.max(0,1-t/2.5)}if(t<2.5)requestAnimationFrame(tick);else{g.parent?.remove(g);coins.forEach(c=>{c.geometry.dispose();c.material.dispose()})}}requestAnimationFrame(tick)}
 function showCustomerStars(c){if(!c?.person)return;const group=new THREE.Group();group.position.set(0,2.7,0);c.person.add(group);const stars=[];for(let i=0;i<5;i++){const mesh=new THREE.Mesh(new THREE.OctahedronGeometry(.18,0),new THREE.MeshBasicMaterial({color:[0xffdc50,0xffef91,0xffbf38][i%3],transparent:true,opacity:1}));group.add(mesh);stars.push(mesh)}const started=performance.now();function tick(now){if(!group.parent)return;const t=(now-started)/1000;stars.forEach((m,i)=>{const a=i*Math.PI*2/5+t*2.6;m.position.set(Math.cos(a)*(.3+t*.13),Math.sin(t*8+i)*.09,Math.sin(a)*.23);m.rotation.y=t*5+i;m.material.opacity=Math.max(0,1-t/2.6)});if(t<2.6)requestAnimationFrame(tick);else{group.parent?.remove(group);stars.forEach(m=>{m.geometry.dispose();m.material.dispose()})}}requestAnimationFrame(tick)}
 for(let i=0;i<3;i++)spawn();document.getElementById('npc').onclick=()=>{if(cash<350)return hud('廣告費不足');cash-=350;expenses+=350;publicity=Math.min(12,publicity+2);save();hud('廣告已刊登，來客量逐漸增加')};document.getElementById('price').onclick=()=>{price=price===49?59:price===59?69:39;save();hud('商品售價調整為 $'+price)};document.getElementById('cashier').onclick=()=>{if(cashierHired)return hud('已有收銀員');if(cash<900)return hud('雇用費不足');cash-=900;cashierHired=true;save();hud('收銀員已到櫃檯')};document.getElementById('buy').onclick=()=>{if(cash<150)return hud('現金不足');cash-=150;expenses+=150;categoryStock.food+=10;inventory=Object.values(categoryStock).reduce((a,b)=>a+b,0);saveProducts();save();hud('食品進貨 +10')};const hireButton=document.getElementById('hire');function updateHireButton(){hireButton.textContent=restockerCount>=4?'✅ 補貨員已達 4 人':'🧑‍🔧 雇用補貨員 $1,200（'+restockerCount+'/4）';hireButton.disabled=restockerCount>=4}hireButton.onclick=()=>{if(restockerCount>=4)return hud('補貨員最多 4 人');if(cash<1200)return hud('現金不足 $1,200');cash-=1200;expenses+=1200;restockerCount++;staff=true;localStorage.setItem('store-v133-restockers',String(restockerCount));syncRestockers();save();updateHireButton();hud('補貨員已增加至 '+restockerCount+' 人')};updateHireButton();document.getElementById('save').onclick=()=>{save();hud('進度已儲存')};document.getElementById('reset').onclick=()=>{camera.position.set(13,14,17);orbit.target.set(0,.8,0);orbit.update()};document.getElementById('quality').onclick=()=>{renderer.setPixelRatio(1);sunlight.castShadow=false;renderer.shadowMap.enabled=false;msg.textContent='已切換低畫質，減少 iPhone 負擔'};let planActive=false,planPos=null,planRotation=0,planOldCamera=null,planOldTarget=null;
