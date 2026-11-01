@@ -860,42 +860,6 @@ const ghostMaterial=new THREE.MeshStandardMaterial({color:0x4fe6b3,transparent:t
 let ghostMeshes=[];
 function ghostPart(w,h,d,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),ghostMaterial);m.position.set(x,y,z);ghost.add(m);ghostMeshes.push(m)}
 function buildGhost(){for(const m of ghostMeshes){ghost.remove(m);m.geometry.dispose()}ghostMeshes=[];const type=pt.value;if(pm.value==='move'){const source=planSelected();if(source){source.updateMatrixWorld(true);source.traverse(o=>{if(!o.isMesh||!o.geometry)return;const mesh=o.clone();mesh.geometry=o.geometry.clone();mesh.material=ghostMaterial;const local=o.getWorldPosition(new THREE.Vector3());source.worldToLocal(local);mesh.position.copy(local);mesh.rotation.copy(o.rotation);ghost.add(mesh);ghostMeshes.push(mesh)});return}}if(type==='plant'){ghostPart(.65,.65,.65,0,.95,0);ghostPart(.45,.55,.45,0,.3,0)}else if(type==='rug'){ghostPart(1.5,.06,1.2,0,.04,0)}else if(type==='fridge'||type==='freezer'){ghostPart(1.35,2.1,.85,0,1.05,0);ghostPart(1.15,1.65,.08,0,1.12,.48)}else{for(const y of [.3,.8,1.3])ghostPart(1.3,.1,.8,0,y,0);for(const x of [-.59,.59])ghostPart(.09,1.55,.78,x,.77,0);for(let i=0;i<4;i++)ghostPart(.22,.28,.25,-.45+i*.3,1.49,0)}}
-// V129: 3D object inspector for the stubborn four small stands.
-// Tap a visible stand, inspect its true Three.js ancestry and remove its owning fixture.
-const inspectButton=document.createElement('button');
-inspectButton.type='button';inspectButton.textContent='🎯 偵測／刪除展示架';
-inspectButton.style.cssText='position:fixed;right:10px;bottom:72px;z-index:2500;padding:10px 12px;border-radius:12px;border:2px solid #ffdc77;background:#19465b;color:#fff;font-weight:bold;box-shadow:0 3px 12px #0008';
-document.body.appendChild(inspectButton);
-let inspectActive=false;
-const inspectRay=new THREE.Raycaster(),inspectPointer=new THREE.Vector2();
-const inspectStatus=document.createElement('div');
-inspectStatus.style.cssText='display:none;position:fixed;z-index:2501;left:8px;right:8px;bottom:126px;background:#102b3ef2;color:white;border:1px solid #ffd77b;border-radius:12px;padding:12px;font-size:13px;white-space:pre-wrap;max-height:40vh;overflow:auto';
-document.body.appendChild(inspectStatus);
-inspectButton.onclick=()=>{inspectActive=!inspectActive;inspectButton.textContent=inspectActive?'✕ 結束偵測':'🎯 偵測／刪除展示架';inspectStatus.style.display=inspectActive?'block':'none';inspectStatus.textContent=inspectActive?'請直接點畫面中的小型展示架。會先顯示物件資料，再詢問是否刪除。':'';
- if(inspectActive&&typeof closePlan==='function'&&typeof planActive!=='undefined'&&planActive)closePlan();};
-renderer.domElement.addEventListener('pointerdown',e=>{
- if(!inspectActive)return;
- e.stopImmediatePropagation();e.preventDefault();
- const rect=renderer.domElement.getBoundingClientRect();
- inspectPointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
- inspectRay.setFromCamera(inspectPointer,camera);
- const hits=inspectRay.intersectObjects(scene.children,true).filter(h=>h.object.isMesh&&h.object.visible&&h.distance>0);
- if(!hits.length){inspectStatus.textContent='沒有偵測到物件，請再點一次展示架。';return}
- const mesh=hits[0].object;
- const ancestors=[];let current=mesh;
- while(current&&current!==scene){ancestors.push(current);current=current.parent}
- const owner=ancestors.find(g=>extra.includes(g)||originalFixtures.includes(g));
- const world=new THREE.Vector3();mesh.getWorldPosition(world);
- const data={mesh:mesh.name||mesh.type,world:[world.x.toFixed(2),world.y.toFixed(2),world.z.toFixed(2)],owner:owner?{kind:owner.userData.kind,original:originalFixtures.indexOf(owner),extra:extra.indexOf(owner)}:null,ancestors:ancestors.slice(0,5).map(g=>g.name||g.type)};
- inspectStatus.textContent='偵測結果：'+JSON.stringify(data,null,2);
- if(!owner){inspectStatus.textContent+='\n這是場景固定物件，為避免誤刪地板、牆壁或收銀台，暫不提供刪除。';return}
- if(owner===fridge){inspectStatus.textContent+='\n冰箱受到保護，不能在偵測模式刪除。';return}
- if(!confirm('確定刪除此展示架？類型：'+owner.userData.kind+'，位置：'+owner.position.x.toFixed(1)+','+owner.position.z.toFixed(1)))return;
- const oi=originalFixtures.indexOf(owner),ei=extra.indexOf(owner);
- if(oi>=0){deletedOriginal.add(oi);saveDeletedOriginal();const fi=furniture.indexOf(owner);if(fi>=0)furniture.splice(fi,1);const si=shelves.indexOf(owner);if(si>=0)shelves.splice(si,1);saveOriginal()}
- if(ei>=0){extra.splice(ei,1);saveExtra()}
- owner.parent?.remove(owner);saveFixtureKinds();save();inspectStatus.textContent+='\n✓ 已刪除並儲存。';
-},true);
 const placementCapture=document.createElement('div');placementCapture.style.cssText='display:none;position:absolute;inset:0;z-index:18;touch-action:none;cursor:crosshair';stage.appendChild(placementCapture);
 function planItems(){return [...new Set([...furniture,...extra,...originalFixtures])].filter(g=>g&&g.visible!==false&&g.parent&&(originalFixtures.indexOf(g)<0||!deletedOriginal.has(originalFixtures.indexOf(g))))}
 function planSelected(){return pi.value!==''?planItems()[Number(pi.value)]||null:null}
@@ -982,32 +946,4 @@ document.getElementById('mobileViewToggle').onclick=()=>{closeConfigurationMenu(
 
 
 // Legacy furnishing buttons were removed by the unified configuration toolbar; its mode and type selectors now own these actions.
-requestAnimationFrame(loop);let arrivalClock=0;setInterval(()=>{gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=200;hud('今日任務達成：獎勵 $200')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,9-publicity*.5);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.96,.65*popularity+publicity*.035))spawn()}},1000);hud('營業開始！顧客會自動上門')}catch(e){error(e)}</script><script id="store-save-backup-v1">
-(()=>{'use strict';
-const prefix='store-', legacy=['v10-racks','store3d-v6'];
-function snapshot(){const data={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith(prefix)||legacy.includes(k)))data[k]=localStorage.getItem(k)}return data}
-const button=document.createElement('button');button.type='button';button.textContent='💾 備份存檔';button.setAttribute('aria-label','匯出此裝置遊戲存檔');button.style.cssText='position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:2147483000;background:#123c51;color:white;border:2px solid #70e5c6;border-radius:14px;padding:12px 15px;font:700 14px system-ui;box-shadow:0 4px 18px #0009;cursor:pointer';
-button.addEventListener('click',()=>{try{const data=snapshot();if(!Object.keys(data).length){alert('目前找不到遊戲存檔，請先確認遊戲已正常載入。');return}const backup={format:'convenience-tycoon-localstorage-backup',version:2,createdAt:new Date().toISOString(),source:'this-device',origin:location.origin,page:location.pathname,entryCount:Object.keys(data).length,data};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='convenience-tycoon-backup-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);alert('已產生此裝置的存檔備份檔。請確認下載成功並妥善保存；此操作不會覆蓋遊戲資料。')}catch(e){alert('備份失敗：'+e.message)}});
-document.body.appendChild(button);
-})();
-</script><script id="store-safe-import-v1">
-(()=>{'use strict';
-const keys=['store-v40-fixture-categories','store-v83-city-theme','store-v45-layout-reset','store-v35-deleted','v10-racks','store-v126-four-racks-removed'];
-const btn=document.createElement('button');btn.type='button';btn.textContent='📲 匯入手機配置';btn.style.cssText='position:fixed;right:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:2147483000;background:#194d65;color:#fff;border:2px solid #70e5c6;border-radius:14px;padding:12px 15px;font:700 14px system-ui;box-shadow:0 4px 18px #0009;cursor:pointer';
-const picker=document.createElement('input');picker.type='file';picker.accept='.json,application/json';picker.style.display='none';document.body.appendChild(picker);
-btn.onclick=()=>picker.click();
-picker.onchange=async()=>{const file=picker.files?.[0];picker.value='';if(!file)return;try{
- const backup=JSON.parse(await file.text());
- if(backup.format!=='convenience-tycoon-localstorage-backup'||backup.version!==1||!backup.data||typeof backup.data!=='object'||Array.isArray(backup.data)||backup.origin!==location.origin){alert('檔案格式或網站來源不符，未變更資料。');return}
- const changes=keys.filter(k=>Object.prototype.hasOwnProperty.call(backup.data,k)&&typeof backup.data[k]==='string');
- if(!changes.length){alert('此備份沒有可匯入的商店配置資料。');return}
- for(const k of changes){const v=backup.data[k];if(v.length>100000)throw Error('資料過大：'+k);if(['store-v40-fixture-categories','store-v35-deleted','v10-racks'].includes(k))JSON.parse(v)}
- if(!confirm('即將以手機備份覆蓋本裝置的 '+changes.length+' 項商店配置（不含現金、庫存及評價）。系統會先在此瀏覽器保留原始資料備份。確定繼續？'))return;
- const old={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('store-')||k==='v10-racks'))old[k]=localStorage.getItem(k)}
- const recovery='store-safe-import-recovery-'+Date.now();localStorage.setItem(recovery,JSON.stringify({format:'convenience-tycoon-import-recovery',createdAt:new Date().toISOString(),data:old}));
- for(const k of changes)localStorage.setItem(k,backup.data[k]);
- alert('配置已匯入。原本存檔已在本裝置保留復原備份，接下來重新載入遊戲。');location.reload();
- }catch(e){alert('匯入失敗，請確認備份檔：'+e.message)}};
-document.body.appendChild(btn);
-})();
-</script></body></html>
+requestAnimationFrame(loop);let arrivalClock=0;setInterval(()=>{gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=200;hud('今日任務達成：獎勵 $200')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,9-publicity*.5);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.96,.65*popularity+publicity*.035))spawn()}},1000);hud('營業開始！顧客會自動上門')}catch(e){error(e)}</script></body></html>
