@@ -846,6 +846,42 @@ const ghostMaterial=new THREE.MeshStandardMaterial({color:0x4fe6b3,transparent:t
 let ghostMeshes=[];
 function ghostPart(w,h,d,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),ghostMaterial);m.position.set(x,y,z);ghost.add(m);ghostMeshes.push(m)}
 function buildGhost(){for(const m of ghostMeshes){ghost.remove(m);m.geometry.dispose()}ghostMeshes=[];const type=pt.value;if(pm.value==='move'){const source=planSelected();if(source){source.updateMatrixWorld(true);source.traverse(o=>{if(!o.isMesh||!o.geometry)return;const mesh=o.clone();mesh.geometry=o.geometry.clone();mesh.material=ghostMaterial;const local=o.getWorldPosition(new THREE.Vector3());source.worldToLocal(local);mesh.position.copy(local);mesh.rotation.copy(o.rotation);ghost.add(mesh);ghostMeshes.push(mesh)});return}}if(type==='plant'){ghostPart(.65,.65,.65,0,.95,0);ghostPart(.45,.55,.45,0,.3,0)}else if(type==='rug'){ghostPart(1.5,.06,1.2,0,.04,0)}else if(type==='fridge'||type==='freezer'){ghostPart(1.35,2.1,.85,0,1.05,0);ghostPart(1.15,1.65,.08,0,1.12,.48)}else{for(const y of [.3,.8,1.3])ghostPart(1.3,.1,.8,0,y,0);for(const x of [-.59,.59])ghostPart(.09,1.55,.78,x,.77,0);for(let i=0;i<4;i++)ghostPart(.22,.28,.25,-.45+i*.3,1.49,0)}}
+// V129: 3D object inspector for the stubborn four small stands.
+// Tap a visible stand, inspect its true Three.js ancestry and remove its owning fixture.
+const inspectButton=document.createElement('button');
+inspectButton.type='button';inspectButton.textContent='🎯 偵測／刪除展示架';
+inspectButton.style.cssText='position:fixed;right:10px;bottom:72px;z-index:2500;padding:10px 12px;border-radius:12px;border:2px solid #ffdc77;background:#19465b;color:#fff;font-weight:bold;box-shadow:0 3px 12px #0008';
+document.body.appendChild(inspectButton);
+let inspectActive=false;
+const inspectRay=new THREE.Raycaster(),inspectPointer=new THREE.Vector2();
+const inspectStatus=document.createElement('div');
+inspectStatus.style.cssText='display:none;position:fixed;z-index:2501;left:8px;right:8px;bottom:126px;background:#102b3ef2;color:white;border:1px solid #ffd77b;border-radius:12px;padding:12px;font-size:13px;white-space:pre-wrap;max-height:40vh;overflow:auto';
+document.body.appendChild(inspectStatus);
+inspectButton.onclick=()=>{inspectActive=!inspectActive;inspectButton.textContent=inspectActive?'✕ 結束偵測':'🎯 偵測／刪除展示架';inspectStatus.style.display=inspectActive?'block':'none';inspectStatus.textContent=inspectActive?'請直接點畫面中的小型展示架。會先顯示物件資料，再詢問是否刪除。':'';
+ if(inspectActive&&typeof closePlan==='function'&&typeof planActive!=='undefined'&&planActive)closePlan();};
+renderer.domElement.addEventListener('pointerdown',e=>{
+ if(!inspectActive)return;
+ e.stopImmediatePropagation();e.preventDefault();
+ const rect=renderer.domElement.getBoundingClientRect();
+ inspectPointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
+ inspectRay.setFromCamera(inspectPointer,camera);
+ const hits=inspectRay.intersectObjects(scene.children,true).filter(h=>h.object.isMesh&&h.object.visible&&h.distance>0);
+ if(!hits.length){inspectStatus.textContent='沒有偵測到物件，請再點一次展示架。';return}
+ const mesh=hits[0].object;
+ const ancestors=[];let current=mesh;
+ while(current&&current!==scene){ancestors.push(current);current=current.parent}
+ const owner=ancestors.find(g=>extra.includes(g)||originalFixtures.includes(g));
+ const world=new THREE.Vector3();mesh.getWorldPosition(world);
+ const data={mesh:mesh.name||mesh.type,world:[world.x.toFixed(2),world.y.toFixed(2),world.z.toFixed(2)],owner:owner?{kind:owner.userData.kind,original:originalFixtures.indexOf(owner),extra:extra.indexOf(owner)}:null,ancestors:ancestors.slice(0,5).map(g=>g.name||g.type)};
+ inspectStatus.textContent='偵測結果：'+JSON.stringify(data,null,2);
+ if(!owner){inspectStatus.textContent+='\n這是場景固定物件，為避免誤刪地板、牆壁或收銀台，暫不提供刪除。';return}
+ if(owner===fridge){inspectStatus.textContent+='\n冰箱受到保護，不能在偵測模式刪除。';return}
+ if(!confirm('確定刪除此展示架？類型：'+owner.userData.kind+'，位置：'+owner.position.x.toFixed(1)+','+owner.position.z.toFixed(1)))return;
+ const oi=originalFixtures.indexOf(owner),ei=extra.indexOf(owner);
+ if(oi>=0){deletedOriginal.add(oi);saveDeletedOriginal();const fi=furniture.indexOf(owner);if(fi>=0)furniture.splice(fi,1);const si=shelves.indexOf(owner);if(si>=0)shelves.splice(si,1);saveOriginal()}
+ if(ei>=0){extra.splice(ei,1);saveExtra()}
+ owner.parent?.remove(owner);saveFixtureKinds();save();inspectStatus.textContent+='\n✓ 已刪除並儲存。';
+},true);
 const placementCapture=document.createElement('div');placementCapture.style.cssText='display:none;position:absolute;inset:0;z-index:18;touch-action:none;cursor:crosshair';stage.appendChild(placementCapture);
 function planItems(){return [...new Set([...furniture,...extra,...originalFixtures])].filter(g=>g&&g.visible!==false&&g.parent&&(originalFixtures.indexOf(g)<0||!deletedOriginal.has(originalFixtures.indexOf(g))))}
 function planSelected(){return pi.value!==''?planItems()[Number(pi.value)]||null:null}
