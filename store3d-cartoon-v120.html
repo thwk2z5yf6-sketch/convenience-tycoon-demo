@@ -1095,4 +1095,24 @@ setInterval(()=>{try{runAutoStock()}catch(e){console.error('Auto stock',e);const
 setTimeout(()=>{try{runAutoStock()}catch(e){console.error('Initial auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 初次補貨錯誤：'+e.message}},1200);
 
 }catch(e){error(e)}
+</script>
+<script>
+/* VNext independent save backup: no existing storage keys are changed. */
+(function(){
+ const btn=document.createElement('button');
+ btn.type='button';btn.textContent='💾 備份遊戲存檔';
+ btn.style.cssText='position:fixed;right:12px;bottom:calc(158px + env(safe-area-inset-bottom));z-index:1300;background:#164a54;color:#fff;border:1px solid #74d7bd;border-radius:12px;padding:9px 12px;font:700 12px system-ui;box-shadow:0 3px 12px #0005';
+ btn.addEventListener('click',function(){
+  try{
+   const data={format:'convenience-tycoon-localstorage-backup',version:1,createdAt:new Date().toISOString(),origin:location.origin,items:{}};
+   for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&/^(store|store3d)/i.test(key))data.items[key]=localStorage.getItem(key)}
+   if(!Object.keys(data.items).length){alert('目前沒有找到本機遊戲存檔');return}
+   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+   const url=URL.createObjectURL(blob),a=document.createElement('a');
+   a.href=url;a.download='convenience-tycoon-backup-'+new Date().toISOString().slice(0,10)+'.json';
+   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(e){alert('備份失敗：'+e.message)}
+ });
+ document.body.appendChild(btn);
+})();
 </script></body></html>
