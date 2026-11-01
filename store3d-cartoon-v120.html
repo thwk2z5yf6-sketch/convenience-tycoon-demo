@@ -945,5 +945,24 @@ const originalViewToggle=document.getElementById('mobileViewToggle').onclick;
 document.getElementById('mobileViewToggle').onclick=()=>{closeConfigurationMenu();originalViewToggle()};
 
 
+// V132: remove four fixed small kiosks shown in the shop's rear side aisles.
+// Their meshes are not in the editable fixture registry; remove only small freestanding meshes
+// around the measured kiosk coordinates, never walls, floor, fridge, cashier or other large meshes.
+function removeFourUnregisteredKiosks(){
+ const centers=[[-5.8,-1.82],[-5.8,-4.3],[5.8,-1.82],[5.8,-4.3]];
+ scene.updateMatrixWorld(true);
+ const targets=[];
+ scene.traverse(o=>{
+  if(!o.isMesh||!o.parent||!o.visible||!o.geometry||!o.geometry.boundingBox&&typeof o.geometry.computeBoundingBox!=='function')return;
+  if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();
+  const size=new THREE.Vector3();o.geometry.boundingBox.getSize(size);
+  const scale=new THREE.Vector3();o.getWorldScale(scale);size.multiply(scale);
+  const p=new THREE.Vector3();o.getWorldPosition(p);
+  if(p.y<.2||p.y>2.5||size.x>1.35||size.y>2.5||size.z>1.35)return;
+  if(centers.some(([x,z])=>Math.abs(p.x-x)<.92&&Math.abs(p.z-z)<.92))targets.push(o);
+ });
+ for(const o of targets)o.parent?.remove(o);
+}
+removeFourUnregisteredKiosks();
 // Legacy furnishing buttons were removed by the unified configuration toolbar; its mode and type selectors now own these actions.
 requestAnimationFrame(loop);let arrivalClock=0;setInterval(()=>{gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=200;hud('今日任務達成：獎勵 $200')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,9-publicity*.5);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.96,.65*popularity+publicity*.035))spawn()}},1000);hud('營業開始！顧客會自動上門')}catch(e){error(e)}</script></body></html>
