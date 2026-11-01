@@ -467,6 +467,32 @@ const deletedOriginal=new Set();
 try{const previous=JSON.parse(localStorage.getItem('store-v35-deleted')||'[]');const removed=new Set(Array.isArray(previous)?previous:[]);for(let i=0;i<4;i++)removed.add(i);localStorage.setItem('store-v35-deleted',JSON.stringify([...removed]));localStorage.setItem('store-v126-four-racks-removed','done')}catch(e){}
 function saveDeletedOriginal(){try{localStorage.setItem('store-v35-deleted',JSON.stringify([...deletedOriginal]))}catch(e){}}
 try{const saved=JSON.parse(localStorage.getItem('store-v35-deleted')||'[]');for(const i of saved){const g=originalFixtures[i];if(!g)continue;deletedOriginal.add(i);scene.remove(g);const f=furniture.indexOf(g);if(f>=0)furniture.splice(f,1);const si=shelves.indexOf(g);if(si>=0)shelves.splice(si,1)}}catch(e){}
+// V128: one-time cleanup of the four small side display stands (two on each side).
+// Run after both legacy originals and saved extra furniture have loaded.
+try{
+ if(localStorage.getItem('store-v128-side-display-cleaned')!=='done'){
+  const eligible=[...new Set([...extra,...originalFixtures])].filter(g=>
+   g&&g.parent&&g.visible!==false&&g!==fridge&&
+   ['rack','snack','bakery','drinks'].includes(g.userData.kind)&&
+   Math.abs(g.position.x)>=3.0&&g.position.z<1.5);
+  const left=eligible.filter(g=>g.position.x<0).sort((a,b)=>a.position.z-b.position.z).slice(0,2);
+  const right=eligible.filter(g=>g.position.x>0).sort((a,b)=>a.position.z-b.position.z).slice(0,2);
+  const targets=[...left,...right];
+  if(targets.length===4&&left.length===2&&right.length===2){
+   const backup=targets.map(g=>({originalIndex:originalFixtures.indexOf(g),x:g.position.x,z:g.position.z,type:g.userData.kind,rotation:g.rotation.y}));
+   localStorage.setItem('store-v128-side-display-backup',JSON.stringify(backup));
+   for(const g of targets){
+    const originalIndex=originalFixtures.indexOf(g);
+    if(originalIndex>=0){deletedOriginal.add(originalIndex);const fi=furniture.indexOf(g);if(fi>=0)furniture.splice(fi,1);const si=shelves.indexOf(g);if(si>=0)shelves.splice(si,1)}
+    const ei=extra.indexOf(g);if(ei>=0)extra.splice(ei,1);
+    g.parent?.remove(g);
+   }
+   saveDeletedOriginal();
+   localStorage.setItem('v10-racks',JSON.stringify(extra.map(g=>({x:g.position.x,z:g.position.z,type:g.userData.kind,rotation:g.rotation.y}))));
+   localStorage.setItem('store-v128-side-display-cleaned','done');
+  }else console.info('V128: side display cleanup skipped; expected 2 per side, found',left.length,right.length);
+ }
+}catch(e){console.warn('V128 side display cleanup skipped safely',e)}
 const choose=(type)=>{placing=true;placeType=type;selectedFurniture=null;orbit.enabled=false;document.querySelectorAll('.game-menu button').forEach(b=>b.classList.remove('active'));const id={rack:'place',fridge:'fridgePlace',plant:'decor',rug:'rug',delete:'delete',rotate:'rotate',move:'move',category:'category'}[type];document.getElementById(id).classList.add('active');hud(type==='move'?'先點貨架，再點新位置（兩下完成）':type==='delete'?'點選設備刪除（退還半價）':'點選店內空地擺放設備')};
 for(const [id,type] of [['place','rack'],['fridgePlace','fridge'],['decor','plant'],['rug','rug'],['delete','delete'],['rotate','rotate'],['move','move']])document.getElementById(id).onclick=()=>choose(type);
 document.getElementById('cancel').onclick=()=>{placing=false;selectedFurniture=null;orbit.enabled=true;document.querySelectorAll('.game-menu button').forEach(b=>b.classList.remove('active'));hud('已退出編輯模式')};
