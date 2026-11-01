@@ -1055,27 +1055,34 @@ requestAnimationFrame(loop);let arrivalClock=0;let gameSpeed=1;const speedButton
 /* Auto-management: saved inventory and task claims use existing storage keys. */
 function runAutoIncomeTasks(){renderIncomeTasks()}
 function runAutoStock(){
- if(!staff)return;
- let purchases=0,changed=false;
- const fixtures=[...new Set([...furniture,...extra])];
+ // Automatic replenishment is a store feature, not dependent on hiring staff.
+ const kinds=['rack','fridge','freezer','snack','bakery','drinks'];
+ const fixtures=[...new Set([...furniture,...extra])].filter(g=>g&&g.parent&&g.visible!==false&&g.userData&&kinds.includes(g.userData.kind));
+ let purchases=0,restocked=0;
  for(const g of fixtures){
-  if(!g||g.visible===false||!g.userData||!['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))continue;
-  if(shelfStock(g)>=9)continue;
-  const sku=skuFor(g),kind=fixtureKind(g),product=sku?skuCatalog[sku]:productTypes[kind];
-  if(!product)continue;
-  const available=sku?Number(skuWarehouse[sku]||0):Number(categoryStock[kind]||0);
-  if(available<3&&purchases<3&&cash-Number(product.cost)>=3000){
-   cash-=Number(product.cost);expenses+=Number(product.cost);
-   if(sku)skuWarehouse[sku]=Number(skuWarehouse[sku]||0)+Number(product.units);
-   else categoryStock[kind]=Number(categoryStock[kind]||0)+Number(product.units);
-   purchases++;changed=true;
-   recordFinance('expense','自動進貨',Number(product.cost));
-  }
-  if(refillFixture(g))changed=true;
+  try{
+   if(shelfStock(g)>=12)continue;
+   const sku=skuFor(g),kind=fixtureKind(g);
+   const product=sku?skuCatalog[sku]:productTypes[kind];
+   if(!product)continue;
+   const warehouse=()=>Math.max(0,Number(sku?skuWarehouse[sku]:categoryStock[kind])||0);
+   if(warehouse()<Math.min(3,12-shelfStock(g))&&purchases<4){
+    const cost=Number(product.cost)||0,units=Number(product.units)||0;
+    if(cost>0&&units>0&&cash-cost>=3000){
+     cash-=cost;expenses+=cost;
+     if(sku)skuWarehouse[sku]=warehouse()+units;
+     else categoryStock[kind]=warehouse()+units;
+     purchases++;
+     try{recordFinance('expense','自動進貨 '+product.label,cost)}catch(e){console.warn('Finance log',e)}
+    }
+   }
+   if(warehouse()>0&&refillFixture(g))restocked++;
+  }catch(e){console.error('Auto restock fixture',e)}
  }
- if(changed){
+ if(purchases||restocked){
   inventory=Object.values(categoryStock).reduce((a,b)=>a+Math.max(0,Number(b)||0),0);
   saveProducts();saveSkus();save();refreshBusiness();
+  if(purchases)try{hud('自動進貨 '+purchases+' 批，補貨 '+restocked+' 座')}catch(e){}
  }
 }
 setInterval(()=>{try{runAutoIncomeTasks()}catch(e){console.error('Auto task',e)}},2500);
