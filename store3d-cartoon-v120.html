@@ -826,9 +826,9 @@ const shelfStockKey='store-v59-shelf-stock';let savedShelfStock={};try{savedShel
 function shelfStock(g){if(!g)return 0;if(!Number.isFinite(g.userData.shelfStock))g.userData.shelfStock=Math.max(0,Number(savedShelfStock[fixtureId(g)])||0);return g.userData.shelfStock}
 function saveShelfStock(){const data={};for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))data[fixtureId(g)]=shelfStock(g);try{localStorage.setItem(shelfStockKey,JSON.stringify(data))}catch(e){}}
 function refillFixture(g){if(!g||g.visible===false)return false;const sku=skuFor(g),kind=fixtureKind(g),available=sku?(skuWarehouse[sku]||0):(categoryStock[kind]||0),amount=Math.min(Math.max(0,12-shelfStock(g)),Math.max(0,available));if(!amount)return false;g.userData.shelfStock=shelfStock(g)+amount;if(sku){skuWarehouse[sku]-=amount;saveSkus()}else{categoryStock[kind]-=amount;inventory=Object.values(categoryStock).reduce((a,b)=>a+b,0);saveProducts()}saveShelfStock();refreshFacings();return true}
-for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind)&&savedShelfStock[fixtureId(g)]===undefined)refillFixture(g);
-// Apply saved product-to-shelf assignments only after all fixtures and display data exist.
+// Restore SKU assignments before initial refill so warehouse counts match the actual displayed product.
 for(const g of [...furniture,...extra]){const id=skuAssignments[fixtureId(g)];if(skuCatalog[id]){g.userData.skuId=id;g.userData.productKind=skuCatalog[id].kind}}
+for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind)&&savedShelfStock[fixtureId(g)]===undefined)refillFixture(g);
 const skuShelfPanel=document.createElement('div');skuShelfPanel.style.cssText='grid-column:1/-1;background:#153c4b;padding:10px;border-radius:10px;color:#fff';
 skuShelfPanel.innerHTML='<strong>🏷️ 指定貨架商品</strong><p style="font-size:12px">貨架有商品時不可更換品項，避免庫存混淆。</p>';
 const skuShelfSelect=document.createElement('select'),skuProductSelect=document.createElement('select'),skuAssignButton=document.createElement('button'),skuRestockButton=document.createElement('button'),skuShelfInfo=document.createElement('p');
@@ -1090,6 +1090,10 @@ const autoStockStatus=document.createElement('div');autoStockStatus.id='autoStoc
 autoStockStatus.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #4b9e9e;border-radius:10px;background:#183b48;color:#d4f7ef;font-size:12px';
 autoStockStatus.textContent='自動管理：等待首次檢查';
 document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(autoStockStatus);
+const stockCheckButton=document.createElement('button');
+stockCheckButton.type='button';stockCheckButton.textContent='🔄 立即檢查並自動補貨';
+stockCheckButton.onclick=()=>{try{runAutoStock()}catch(e){autoStockStatus.textContent='⚠️ 補貨檢查失敗：'+e.message}};
+autoStockStatus.parentElement?.appendChild(stockCheckButton);
 setInterval(()=>{try{runAutoIncomeTasks()}catch(e){console.error('Auto task',e)}},2500);
 setInterval(()=>{try{runAutoStock()}catch(e){console.error('Auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 自動補貨錯誤：'+e.message}},5500);
 setTimeout(()=>{try{runAutoStock()}catch(e){console.error('Initial auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 初次補貨錯誤：'+e.message}},1200);
