@@ -806,7 +806,7 @@ const skuShelfSelect=document.createElement('select'),skuProductSelect=document.
 for(const [id,label] of skuItems){const o=document.createElement('option');o.value=id;o.textContent=label;skuProductSelect.appendChild(o)}
 for(const el of [skuShelfSelect,skuProductSelect])el.style.cssText='max-width:100%;width:100%;margin:3px 0;padding:8px;border-radius:7px';
 skuAssignButton.textContent='指定商品';skuRestockButton.textContent='📦 從倉庫補貨';skuShelfPanel.append(skuShelfSelect,skuProductSelect,skuAssignButton,skuRestockButton,skuShelfInfo);
-document.querySelector('.game-menu details:nth-child(3) .menu-buttons')?.appendChild(skuShelfPanel);
+const stockDetails=[...document.querySelectorAll('.game-menu details')].find(d=>d.querySelector('summary')?.textContent.includes('商品補貨'));stockDetails?.querySelector('.menu-buttons')?.appendChild(skuShelfPanel);
 function updateSkuShelfList(){const old=skuShelfSelect.value;skuShelfSelect.innerHTML='';for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind)){const o=document.createElement('option');o.value=fixtureId(g);o.textContent=fixtureId(g)+'｜'+(skuFor(g)?skuCatalog[skuFor(g)].label:'一般商品')+'｜架上 '+shelfStock(g);skuShelfSelect.appendChild(o)}if([...skuShelfSelect.options].some(o=>o.value===old))skuShelfSelect.value=old}
 function chosenSkuShelf(){return [...furniture,...extra].find(g=>fixtureId(g)===skuShelfSelect.value)}
 skuAssignButton.onclick=()=>{const g=chosenSkuShelf(),sku=skuProductSelect.value;if(!g)return skuShelfInfo.textContent='請先購買貨架';if(shelfStock(g)>0)return skuShelfInfo.textContent='請先將貨架售完再更換商品';g.userData.skuId=sku;g.userData.productKind=skuCatalog[sku].kind;skuAssignments[fixtureId(g)]=sku;saveSkus();saveFixtureKinds();refreshFacings();updateSkuShelfList();skuShelfInfo.textContent='已指定 '+skuCatalog[sku].label};
@@ -831,7 +831,7 @@ function refreshShortageDetails(){
 }
 shortageRefresh.onclick=refreshShortageDetails;
 
-document.querySelector('.game-menu details:nth-child(3)')?.addEventListener('toggle',()=>{updateSkuShelfList();refreshShortageDetails()});updateSkuShelfList();refreshShortageDetails();
+stockDetails?.addEventListener('toggle',()=>{if(stockDetails.open){updateSkuShelfList();refreshShortageDetails()}});updateSkuShelfList();refreshShortageDetails();
 refreshFacings();refreshBusiness();
 const queueSpots=[[2,2],[1.25,3.05],[.15,3.05],[-.95,3.05],[-2.05,3.05],[-3.15,3.05]];
 const checkoutLanes=[{x:2,z:2,staff:()=>cashierHired},{x:-1.5,z:2.1,staff:()=>extraCashiers>=1},{x:-4,z:2.1,staff:()=>extraCashiers>=2}];
