@@ -890,5 +890,5 @@ const originalViewToggle=document.getElementById('mobileViewToggle').onclick;
 document.getElementById('mobileViewToggle').onclick=()=>{closeConfigurationMenu();originalViewToggle()};
 
 
-document.getElementById('place').onclick=()=>openPlan('rack');document.getElementById('fridgePlace').onclick=()=>openPlan('fridge');document.getElementById('move').onclick=()=>openPlan('rack','move');
+// Legacy furnishing buttons were removed by the unified configuration toolbar; its mode and type selectors now own these actions.
 requestAnimationFrame(loop);let arrivalClock=0;setInterval(()=>{gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=200;hud('今日任務達成：獎勵 $200')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,9-publicity*.5);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.96,.65*popularity+publicity*.035))spawn()}},1000);hud('營業開始！顧客會自動上門')}catch(e){error(e)}</script></body></html>
