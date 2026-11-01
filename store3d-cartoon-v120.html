@@ -450,6 +450,17 @@ try{
 }catch(e){console.warn('Side stand cleanup skipped',e)}
 const furniture=[...shelves,fridge];
 const originalFixtures=[...furniture];
+// V131: clean up legacy small display stands on every load, even when the old one-time flag was set.
+// Only remove removable display fixtures near the left wall; preserve the cashier, fridge, floor and saved economy.
+try {
+ const legacyStands=extra.filter(g=>g&&g.parent&&['rack','snack','bakery','drinks'].includes(g.userData.kind)&&g.position.x<=-3.5&&g.position.z>=-5.5&&g.position.z<=1.5);
+ if(legacyStands.length){
+  const backupKey='store-v131-removed-stands-backup';
+  if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,JSON.stringify(legacyStands.map(g=>({x:g.position.x,z:g.position.z,type:g.userData.kind,rotation:g.rotation.y}))));
+  for(const g of legacyStands){g.parent.remove(g);const i=extra.indexOf(g);if(i>=0)extra.splice(i,1)}
+  localStorage.setItem('v10-racks',JSON.stringify(extra.map(g=>({x:g.position.x,z:g.position.z,type:g.userData.kind,rotation:g.rotation.y}))));
+ }
+}catch(e){console.warn('Legacy display stand cleanup skipped',e)}
 // V130: ensure the four built-in display racks never render, including on old saves.
 for(const g of shelves){g.visible=false;g.parent?.remove(g)}
 
