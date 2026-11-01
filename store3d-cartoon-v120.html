@@ -816,15 +816,7 @@ const shortagePanel=document.createElement('section');shortagePanel.style.cssTex
 const shortageTitle=document.createElement('strong');shortageTitle.textContent='📋 缺貨明細｜每座貨架';
 const shortageInfo=document.createElement('p'),shortageList=document.createElement('div'),shortageRefresh=document.createElement('button');shortageRefresh.textContent='🔄 手動更新';
 shortagePanel.append(shortageTitle,shortageInfo,shortageRefresh,shortageList);
-const shortageDetails=document.createElement('details');
-shortageDetails.className='shortage-details';
-shortageDetails.style.cssText='margin:8px 0;border:1px solid #4a8990;border-radius:12px;overflow:hidden';
-const shortageSummaryEl=document.createElement('summary');shortageSummaryEl.textContent='📋 缺貨明細';shortageSummaryEl.style.cssText='cursor:pointer;padding:14px;font-weight:bold;background:#20596d;color:white;font-size:17px';
-shortageDetails.append(shortageSummaryEl,shortagePanel);
-const menuRoot=stockDetails?.parentElement||document.querySelector('.game-menu');
-if(stockDetails&&menuRoot)stockDetails.insertAdjacentElement('afterend',shortageDetails);
-else if(menuRoot)menuRoot.prepend(shortageDetails);
-shortageDetails.addEventListener('toggle',()=>{if(shortageDetails.open)refreshShortageDetails()});
+// Shortage details UI removed; internal diagnostics retained.
 let lastShortageReason='尚無紀錄';
 function refreshShortageDetails(){
  shortageList.replaceChildren();const fixtures=[...new Set([...furniture,...extra])].filter(g=>g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind));
@@ -838,7 +830,7 @@ function refreshShortageDetails(){
  row.append(label,btn);shortageList.append(row);
  }
 }
-shortageRefresh.onclick=refreshShortageDetails;
+// No standalone shortage details panel.
 
 stockDetails?.addEventListener('toggle',()=>{if(stockDetails.open){updateSkuShelfList();refreshShortageDetails()}});updateSkuShelfList();refreshShortageDetails();
 refreshFacings();refreshBusiness();
@@ -1037,7 +1029,7 @@ function runAutoIncomeTasks(){
  let total=0;
  for(const task of incomeTasks){
   const eligible=Math.floor(sales/task.step);
-  const claimed=Number(extraIncomeClaims[task.id]||0);
+  const claimed=Math.max(0,Number(extraIncomeClaims[task.id]||0));
   if(eligible<=claimed||(task.id==='quality'&&happy<75))continue;
   const count=eligible-claimed;
   const reward=count*Math.round(task.reward*1.5);
@@ -1047,7 +1039,7 @@ function runAutoIncomeTasks(){
  }
  if(total){
   try{localStorage.setItem('store-v94-income',JSON.stringify(extraIncomeClaims))}catch(e){}
-  save();refreshBusiness();renderIncomeTasks();
+  save();refreshBusiness();renderIncomeTasks();hud('任務自動領獎 $'+total);
  }
 }
 function runAutoStock(){
