@@ -1058,7 +1058,7 @@ function runAutoIncomeTasks(){renderIncomeTasks()}
 let autoStockTicks=0,autoStockBought=0,autoStockFilled=0,autoStockLast='等待首次檢查';
 function runAutoStock(){
  const kinds=['rack','fridge','freezer','snack','bakery','drinks'];
- const fixtures=[...new Set([...furniture,...extra])].filter(g=>g&&g.parent&&g.visible!==false&&g.userData&&kinds.includes(g.userData.kind));
+ const fixtures=[...new Set([...furniture,...extra])].filter(g=>g&&g.visible!==false&&g.userData&&kinds.includes(g.userData.kind));
  let purchases=0,restocked=0,blocked=0;
  const maxPurchases=4;
  for(const g of fixtures){
@@ -1085,13 +1085,13 @@ function runAutoStock(){
   inventory=Object.values(categoryStock).reduce((a,b)=>a+Math.max(0,Number(b)||0),0);
   saveProducts();saveSkus();save();refreshBusiness();
  }
- const el=document.getElementById('autoStockStatus');if(el)el.textContent='自動管理：'+autoStockLast+'｜累計進貨 '+autoStockBought+' 批、補貨 '+autoStockFilled+' 座';
+ const el=document.getElementById('autoStockStatus');if(el)el.textContent='自動管理：'+autoStockLast+'｜累計進貨 '+autoStockBought+' 批、補貨 '+autoStockFilled+' 座｜執行 '+autoStockTicks+' 次';
 }
 const autoStockStatus=document.createElement('div');autoStockStatus.id='autoStockStatus';
 autoStockStatus.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #4b9e9e;border-radius:10px;background:#183b48;color:#d4f7ef;font-size:12px';
 autoStockStatus.textContent='自動管理：等待首次檢查';
 document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(autoStockStatus);
 setInterval(()=>{try{runAutoIncomeTasks()}catch(e){console.error('Auto task',e)}},2500);
-setInterval(()=>{try{runAutoStock()}catch(e){console.error('Auto stock',e)}},staff?Math.max(1600,4500-(workerLevel-1)*500):5500);
-setTimeout(()=>{try{runAutoStock()}catch(e){console.error('Initial auto stock',e)}},1200);
+setInterval(()=>{try{runAutoStock()}catch(e){console.error('Auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 自動補貨錯誤：'+e.message}},5500);
+setTimeout(()=>{try{runAutoStock()}catch(e){console.error('Initial auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 初次補貨錯誤：'+e.message}},1200);
 </script></body></html>
