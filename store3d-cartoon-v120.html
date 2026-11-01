@@ -793,10 +793,10 @@ const lightSwitch=document.createElement('button');lightSwitch.textContent='🌤
 function refreshGameHud(){renderFinance();renderIncomeTasks();document.getElementById('hudCash').textContent='💰 $'+cash;document.getElementById('hudDay').textContent='📅 第 '+day+' 天';document.getElementById('hudSales').textContent='🛍️ '+sales+' 件';document.getElementById('hudMood').textContent='😊 '+happy+'%'}
 refreshGameHud();
 const planBar=document.createElement('div');planBar.id='planBar';planBar.style.cssText='display:none;position:fixed;z-index:1800;top:8px;left:50%;transform:translateX(-50%);width:min(96vw,950px);padding:9px;background:#102f40f2;border:1px solid #64d7bd;border-radius:14px;color:white;box-shadow:0 6px 30px #0007';
-planBar.innerHTML='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong>🛒 3D 設備配置</strong><select id="planType" aria-label="選擇設備"></select><select id="planMode" aria-label="配置操作"><option value="buy">新增</option><option value="move">移動</option><option value="delete">刪除</option></select><select id="planItem" aria-label="選擇現有設備"></select><button id="planRotate">↻ 旋轉</button><button id="planConfirm">✓ 確認擺放</button><button id="planClose">✕ 完成</button></div><div id="planInfo" style="font-size:12px;margin-top:5px;color:#d0f7e8">在商店畫面點選地板選位置，綠色可擺、紅色不可擺。</div>';document.body.appendChild(planBar);
+planBar.innerHTML='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><strong>🛒 商店配置</strong><select id="planMode" aria-label="配置操作"><option value="buy">➕ 新增</option><option value="move">✋ 移動</option><option value="delete">🗑️ 刪除</option></select><select id="planType" aria-label="選擇設備"></select><select id="planItem" aria-label="選擇現有設備"></select><button id="planRotate">↻ 旋轉</button><button id="planConfirm">✓ 確認擺放</button><button id="planClose">✕ 完成</button></div><div id="planInfo" style="font-size:12px;margin-top:5px;color:#d0f7e8">新增：選設備後點地板；移動／刪除：先選設備。</div>';document.body.appendChild(planBar);
 const pt=document.getElementById('planType'),pm=document.getElementById('planMode'),pi=document.getElementById('planItem'),info=document.getElementById('planInfo');
 const planQuickList=document.createElement('div');planQuickList.id='planQuickList';planQuickList.style.cssText='display:none;gap:6px;flex-wrap:wrap;max-height:110px;overflow:auto;margin-top:7px';planBar.appendChild(planQuickList);
-function planRefreshQuickList(){planQuickList.style.display=pm.value==='delete'?'flex':'none';planQuickList.replaceChildren();if(pm.value!=='delete')return;planItems().forEach((g,i)=>{const b=document.createElement('button');b.type='button';b.textContent=(g.userData.kind==='rack'?'🛒 商品架':g.userData.kind==='fridge'?'🧊 冰箱':'📦 '+(g.userData.kind||'設備'))+' '+(i+1);b.style.cssText='padding:8px 10px;background:'+ (pi.value===String(i)?'#f3b36c':'#31758a')+';color:white;border:1px solid #a4dbd0;border-radius:9px;font-size:13px';b.onclick=()=>{planSelectFixture(g);planRefreshQuickList()};planQuickList.appendChild(b)});if(!planItems().length)planQuickList.textContent='目前沒有可刪除的設備'}
+function planRefreshQuickList(){planQuickList.style.display=pm.value==='delete'?'flex':'none';planQuickList.replaceChildren();if(pm.value!=='delete')return;planItems().forEach((g,i)=>{const b=document.createElement('button');b.type='button';b.textContent=(g.userData.kind==='rack'?'🛒 商品架':g.userData.kind==='fridge'?'🧊 冰箱':'📦 '+(g.userData.kind||'設備'))+' '+(i+1);b.style.cssText='padding:8px 10px;background:'+ (pi.value===String(i)?'#f3b36c':'#31758a')+';color:white;border:1px solid #a4dbd0;border-radius:9px;font-size:13px';b.onclick=()=>{planSelectFixture(g);planRefreshQuickList()};planQuickList.appendChild(b)});if(!planItems().length)planQuickList.textContent='目前沒有已放置的可刪除設備；畫面上的固定裝飾不屬於可拆設備'}
 for(const [id,name,cost] of planTypes){const o=document.createElement('option');o.value=id;o.textContent=name+' $'+cost;pt.appendChild(o)}
 const placementLayer=new THREE.Group();scene.add(placementLayer);const placementRay=new THREE.Raycaster(),placementPointer=new THREE.Vector2(),placementPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0),placementPoint=new THREE.Vector3();
 const placementTiles=[];const tileGeometry=new THREE.PlaneGeometry(.91,.91);const tileGood=new THREE.MeshBasicMaterial({color:0x26d69a,transparent:true,opacity:.33,depthWrite:false,side:THREE.DoubleSide}),tileBad=new THREE.MeshBasicMaterial({color:0xf05261,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide});
@@ -806,7 +806,7 @@ let ghostMeshes=[];
 function ghostPart(w,h,d,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),ghostMaterial);m.position.set(x,y,z);ghost.add(m);ghostMeshes.push(m)}
 function buildGhost(){for(const m of ghostMeshes){ghost.remove(m);m.geometry.dispose()}ghostMeshes=[];const type=pt.value;if(pm.value==='move'){const source=planSelected();if(source){source.updateMatrixWorld(true);source.traverse(o=>{if(!o.isMesh||!o.geometry)return;const mesh=o.clone();mesh.geometry=o.geometry.clone();mesh.material=ghostMaterial;const local=o.getWorldPosition(new THREE.Vector3());source.worldToLocal(local);mesh.position.copy(local);mesh.rotation.copy(o.rotation);ghost.add(mesh);ghostMeshes.push(mesh)});return}}if(type==='plant'){ghostPart(.65,.65,.65,0,.95,0);ghostPart(.45,.55,.45,0,.3,0)}else if(type==='rug'){ghostPart(1.5,.06,1.2,0,.04,0)}else if(type==='fridge'||type==='freezer'){ghostPart(1.35,2.1,.85,0,1.05,0);ghostPart(1.15,1.65,.08,0,1.12,.48)}else{for(const y of [.3,.8,1.3])ghostPart(1.3,.1,.8,0,y,0);for(const x of [-.59,.59])ghostPart(.09,1.55,.78,x,.77,0);for(let i=0;i<4;i++)ghostPart(.22,.28,.25,-.45+i*.3,1.49,0)}}
 const placementCapture=document.createElement('div');placementCapture.style.cssText='display:none;position:absolute;inset:0;z-index:18;touch-action:none;cursor:crosshair';stage.appendChild(placementCapture);
-function planItems(){return [...new Set([...furniture,...extra])].filter(g=>g&&g.visible!==false&&g.parent)}
+function planItems(){return [...new Set([...furniture,...extra,...originalFixtures])].filter(g=>g&&g.visible!==false&&g.parent&&!deletedOriginal.has(originalFixtures.indexOf(g)))}
 function planSelected(){return pi.value!==''?planItems()[Number(pi.value)]||null:null}
 function planSelectFixture(g){const index=planItems().indexOf(g);if(index<0)return;pi.value=String(index);info.textContent='🗑️ 已選取 '+(g.userData.kind==='rack'?'商品架':g.userData.kind==='fridge'?'冰箱':g.userData.kind||'設備')+' '+(index+1)+'，請按「確認刪除」';planRefreshTiles();planRefreshQuickList();}
 function planScreenPick(clientX,clientY){const rect=renderer.domElement.getBoundingClientRect();let chosen=null,best=70;for(const g of planItems()){const p=new THREE.Vector3();g.getWorldPosition(p);p.y+=g.userData.kind==='rug'?.08:1;const projected=p.project(camera);if(projected.z>1||projected.z< -1)continue;const sx=rect.left+(projected.x+1)*rect.width/2,sy=rect.top+(1-projected.y)*rect.height/2;const d=Math.hypot(sx-clientX,sy-clientY);if(d<best){best=d;chosen=g}}return chosen}
@@ -841,8 +841,8 @@ if(pm.value==='delete'){
 }
 if(!planPos)return info.textContent='請先點選商店地板';const moving=pm.value==='move',g=moving?planSelected():null;if(!planValid(planPos.x,planPos.z,g))return info.textContent='🔴 這個位置不能擺放';if(moving){if(!g)return info.textContent='沒有可移動的設備';moveFixtureWithContents(g,planPos.x,planPos.z);g.rotation.y=planRotation;saveOriginal();saveExtra();save();info.textContent='✓ 設備已移動'}else{const [type,name,cost]=planTypes.find(v=>v[0]===pt.value);if(cash<cost)return info.textContent='現金不足，需 $'+cost;const created=addRack(planPos.x,planPos.z,type,planRotation);if(['snack','bakery','drinks'].includes(type)){created.userData.productKind=type==='snack'?'snack':type==='bakery'?'food':'drink';saveFixtureKinds()}cash-=cost;saveExtra();save();info.textContent='✓ 已購買 '+name}planRefreshItems();planRefreshTiles();buildGhost();ghost.visible=false;planPos=null}
 function closePlan(){planActive=false;planDragging=false;planBar.style.display='none';placementCapture.style.display='none';placementLayer.visible=false;ghost.visible=false;orbit.enabled=true;if(planOldCamera&&planOldTarget){camera.position.copy(planOldCamera);orbit.target.copy(planOldTarget);camera.updateProjectionMatrix();orbit.update()}document.body.classList.remove('plan-active','plan-tools-expanded');refreshBusiness();window.dispatchEvent(new Event('resize'))}
-function openPlan(type='rack',mode='buy'){placing=false;selectedFurniture=null;document.body.classList.remove('menu-open');planOldCamera=camera.position.clone();planOldTarget=orbit.target.clone();planActive=true;planPos=null;planRotation=0;closeConfigurationMenu();document.body.classList.remove('plan-tools-expanded');togglePlanTools.textContent='☰ 更多設備工具';planTools.open=false;planBar.style.display='block';placementCapture.style.display='block';placementLayer.visible=true;document.body.classList.add('plan-active');pt.value=type;pm.value=mode;planRefreshItems();updatePlanDeleteUI();planRefreshTiles();buildGhost();ghost.visible=false;orbit.enabled=false;const w=13+sideLevel*5,d=12+(storeLevel-1)*3;resize();const portrait=stage.clientWidth<stage.clientHeight;const fovRadians=THREE.MathUtils.degToRad(camera.fov);const fitWidth=w/(2*Math.tan(fovRadians/2)*camera.aspect*.82);const fitDepth=d/(2*Math.tan(fovRadians/2)*(portrait?.69:.82));const distance=Math.max(16,fitWidth,fitDepth);const centerZ=-(storeLevel-1)*1.5;camera.position.set(0,distance,centerZ+.01);orbit.target.set(0,0,centerZ);camera.lookAt(orbit.target);info.textContent='請直接點選 3D 商店地板選位置';window.dispatchEvent(new Event('resize'))}
-pt.onchange=()=>{planPos=null;ghost.visible=false;buildGhost()};function updatePlanDeleteUI(){document.getElementById('planConfirm').textContent=pm.value==='delete'?'🗑️ 確認刪除':'✓ 確認擺放';pt.style.display=pm.value==='delete'?'none':'';document.getElementById('planRotate').style.display=pm.value==='delete'?'none':'';ghost.visible=false;if(pm.value==='delete')info.textContent='🗑️ 點選商店內設備，或點下方商品架按鈕選擇，再按確認刪除';planRefreshQuickList();}
+function openPlan(type='rack',mode='buy'){placing=false;selectedFurniture=null;document.body.classList.remove('menu-open');planOldCamera=camera.position.clone();planOldTarget=orbit.target.clone();planActive=true;planPos=null;planRotation=0;closeConfigurationMenu();document.body.classList.remove('plan-tools-expanded');planBar.style.display='block';placementCapture.style.display='block';placementLayer.visible=true;document.body.classList.add('plan-active');pt.value=type;pm.value=mode;planRefreshItems();updatePlanDeleteUI();planRefreshTiles();buildGhost();ghost.visible=false;orbit.enabled=false;const w=13+sideLevel*5,d=12+(storeLevel-1)*3;resize();const portrait=stage.clientWidth<stage.clientHeight;const fovRadians=THREE.MathUtils.degToRad(camera.fov);const fitWidth=w/(2*Math.tan(fovRadians/2)*camera.aspect*.82);const fitDepth=d/(2*Math.tan(fovRadians/2)*(portrait?.69:.82));const distance=Math.max(16,fitWidth,fitDepth);const centerZ=-(storeLevel-1)*1.5;camera.position.set(0,distance,centerZ+.01);orbit.target.set(0,0,centerZ);camera.lookAt(orbit.target);info.textContent='請直接點選 3D 商店地板選位置';window.dispatchEvent(new Event('resize'))}
+pt.onchange=()=>{planPos=null;ghost.visible=false;buildGhost()};function updatePlanDeleteUI(){document.getElementById('planConfirm').textContent=pm.value==='delete'?'🗑️ 確認刪除':pm.value==='move'?'✓ 確認移動':'✓ 確認擺放';pt.style.display=pm.value==='delete'?'none':'';document.getElementById('planRotate').style.display=pm.value==='delete'?'none':'';ghost.visible=false;if(pm.value==='delete')info.textContent='🗑️ 點選商店內設備，或點下方商品架按鈕選擇，再按確認刪除';planRefreshQuickList();}
 pm.onchange=()=>{planRefreshItems();planRefreshTiles();planPos=null;ghost.visible=false;buildGhost();updatePlanDeleteUI()};pi.onchange=()=>{planRefreshTiles();planPos=null;ghost.visible=false;buildGhost();if(pm.value==='delete'){const g=planSelected();info.textContent=g?'🗑️ 已選取 '+(g.userData.kind||'設備')+'，按確認刪除':'請選擇設備'}};document.getElementById('planRotate').onclick=()=>{planRotation=(planRotation+Math.PI/2)%(Math.PI*2);planUpdateGhost()};document.getElementById('planConfirm').onclick=planConfirm;document.getElementById('planClose').onclick=closePlan;
 // V113: move equipment and shelving controls from Management into the Configuration tab.
 const configurationMenu=document.createElement('div');
@@ -862,53 +862,33 @@ configurationTitle.style.cssText='font-size:18px;font-weight:800;color:white;pad
 configurationMenu.appendChild(configurationTitle);
 furnitureMenu.remove();
 // V114: all furnishing controls are integrated into the 3D layout workspace instead of a second overlapping menu.
-const planTools=document.createElement('details');
-planTools.id='planEquipmentTools';
-planTools.innerHTML='<summary>🛒 設備與貨架工具（新增／移動／刪除／商品設定）</summary>';
-planTools.style.cssText='margin-top:8px;border:1px solid #4a9caa;border-radius:10px;background:#163d4d';
-planTools.appendChild(furnitureMenu);
-furnitureMenu.open=true;
-planBar.appendChild(planTools);
-// V117: compact editing toolbar; secondary tools are hidden until explicitly requested.
+// Unified configuration: no duplicate equipment menu or second configuration screen.
+furnitureMenu.remove();
+const configurationHint=document.createElement('p');
+configurationHint.textContent='使用上方「新增／移動／刪除」切換操作，所有設備統一在這裡管理。';
+configurationHint.style.cssText='font-size:12px;color:#d3f3ee;margin:6px 0';
+planBar.appendChild(configurationHint);
 const togglePlanTools=document.createElement('button');
 togglePlanTools.id='togglePlanTools';
-togglePlanTools.type='button';
-togglePlanTools.textContent='☰ 更多設備工具';
-togglePlanTools.style.cssText='background:#258b8a;color:white;border:0;border-radius:8px;padding:7px 10px;font-weight:700';
-planBar.insertBefore(togglePlanTools,planTools);
-togglePlanTools.onclick=()=>{
- const show=!document.body.classList.contains('plan-tools-expanded');
- document.body.classList.toggle('plan-tools-expanded',show);
- planTools.open=show;
- togglePlanTools.textContent=show?'▲ 收起設備工具':'☰ 更多設備工具';
-};
-
+togglePlanTools.style.display='none';
+togglePlanTools.textContent='設備工具';
+togglePlanTools.onclick=()=>{};
+const planTools=document.createElement('div');
+planTools.id='planEquipmentTools';
+planTools.style.display='none';
 const open3DConfigButton=document.createElement('button');
-open3DConfigButton.textContent='🛒 進入 3D 設備配置';
-open3DConfigButton.style.cssText='display:block;width:100%;padding:16px;margin:10px 0;border-radius:12px;font-size:17px;background:#20b99c;color:#092f36';
+open3DConfigButton.textContent='🛒 開啟商店配置';
+open3DConfigButton.style.cssText='width:100%;padding:14px;border-radius:12px;background:#20b99c;color:#092f36';
 open3DConfigButton.onclick=()=>openPlan();
 configurationMenu.appendChild(open3DConfigButton);
-const configHint=document.createElement('p');
-configHint.textContent='點上方按鈕進入 3D 商店，再展開設備與貨架工具，可新增、移動、旋轉、刪除設備。';
-configHint.style.cssText='color:#d3f3ee;font-size:13px;line-height:1.6';
-configurationMenu.appendChild(configHint);
-
 document.body.appendChild(configurationMenu);
 function closeConfigurationMenu(){configurationMenu.style.display='none';document.body.classList.remove('configuration-open')}
-document.getElementById('mobilePlanToggle').onclick=()=>{
- document.body.classList.add('mobile-immersive');
- document.body.classList.remove('menu-open');
- if(document.body.classList.contains('configuration-open')){closeConfigurationMenu();return}
- document.body.classList.add('configuration-open');
- configurationMenu.style.display='flex';
- window.dispatchEvent(new Event('resize'));
-};
+document.getElementById('mobilePlanToggle').onclick=()=>{document.body.classList.add('mobile-immersive');document.body.classList.remove('menu-open');openPlan()};
 const originalManagementToggle=document.getElementById('mobileMenuToggle').onclick;
 document.getElementById('mobileMenuToggle').onclick=()=>{closeConfigurationMenu();originalManagementToggle()};
 const originalViewToggle=document.getElementById('mobileViewToggle').onclick;
 document.getElementById('mobileViewToggle').onclick=()=>{closeConfigurationMenu();originalViewToggle()};
 
-const cancelPlanButton=document.createElement('button');cancelPlanButton.textContent='↩ 取消選取';cancelPlanButton.onclick=()=>{planPos=null;ghost.visible=false;info.textContent='已取消選取，請重新點選地板'};document.getElementById('planConfirm').insertAdjacentElement('afterend',cancelPlanButton);
-const planButton=document.createElement('button');planButton.textContent='🗺️ 3D 商店配置';planButton.onclick=()=>openPlan();furnitureMenu.querySelector('.menu-buttons').prepend(planButton);
+
 document.getElementById('place').onclick=()=>openPlan('rack');document.getElementById('fridgePlace').onclick=()=>openPlan('fridge');document.getElementById('move').onclick=()=>openPlan('rack','move');
 requestAnimationFrame(loop);let arrivalClock=0;setInterval(()=>{gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=200;hud('今日任務達成：獎勵 $200')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,9-publicity*.5);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.96,.65*popularity+publicity*.035))spawn()}},1000);hud('營業開始！顧客會自動上門')}catch(e){error(e)}</script></body></html>
