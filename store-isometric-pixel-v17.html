@@ -1,0 +1,71 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>便利商店大亨 V17｜等角像素風</title><style>
+*{box-sizing:border-box}body{margin:0;background:#172e45;color:#fff;font:14px system-ui}header{background:linear-gradient(#f8c65a,#df9c38);border-bottom:4px solid #fff1b2;color:#50320c;padding:8px 12px}h1{font-size:19px;margin:0 0 5px}.stats{display:flex;gap:7px;flex-wrap:wrap}.stats span{background:#fff9d6;border:2px solid #b88236;border-radius:6px;padding:5px 9px;font-weight:800}#wrap{max-width:1200px;margin:auto}canvas{display:block;width:100%;height:auto;background:#c4e5ed;image-rendering:pixelated;touch-action:manipulation}#notice{background:#fff6d6;color:#765321;padding:8px 12px;min-height:38px;border-top:4px solid #e9ba56}nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:7px;padding:9px;background:#dbeef5}button{border:3px solid #fff;border-bottom-color:#7d9db7;background:linear-gradient(#78c5f6,#398bd2);border-radius:9px;color:#fff;font-weight:800;padding:10px 6px;min-height:61px;text-shadow:1px 2px #3575aa;box-shadow:0 2px 0 #7197ac}button.active{background:linear-gradient(#ffc965,#ed9e3e);text-shadow:1px 2px #b67c27}small{display:block;color:#d8f0ff;font-size:11px}footer{padding:10px;text-align:center;color:#b6d6e6}</style></head><body><div id="wrap"><header><h1>🏪 便利商店大亨 · V17 像素街景經營版</h1><div class="stats"><span id="cash"></span><span id="stock"></span><span id="sales"></span><span id="staff"></span><span id="visitors"></span></div></header><canvas id="game" width="960" height="680"></canvas><div id="notice">點選下方設備卡片，再點店內空地擺放。顧客會從正門進出。</div><nav>
+<button data-mode="shelf">🛒 貨架<small>$300</small></button><button data-mode="fridge">🧊 冰箱<small>$500</small></button><button data-mode="snack">🍬 零食架<small>$220</small></button><button data-mode="plant">🌿 盆栽<small>$120</small></button><button data-mode="rug">🟨 地毯<small>$90</small></button><button data-mode="move">✋ 移動<small>先選再放</small></button><button data-mode="rotate">🔄 旋轉<small>點設備</small></button><button data-mode="delete">🗑️ 刪除<small>退半價</small></button><button id="cancel">✖️ 退出<small>取消編輯</small></button><button id="food">🥪 食品<small>補貨 $120</small></button><button id="drink">🥤 飲料<small>補貨 $120</small></button><button id="daily">🧴 日用品<small>補貨 $120</small></button><button id="hire">👩‍💼 雇用員工<small>$1200</small></button><button id="save">💾 儲存<small>本機存檔</small></button></nav><footer>原創等角像素風場景 · V16 保留不變 · 手機可操作</footer></div>
+<script>
+(()=>{'use strict';
+const c=document.getElementById('game'),ctx=c.getContext('2d'),W=960,H=680,S=26,OX=475,OY=185;
+const $=id=>document.getElementById(id),msg=t=>$('notice').textContent=t;
+const colors={shelf:'#7795a0',fridge:'#e8f3f7',snack:'#edac72',plant:'#77b78b',rug:'#eac16e'};
+const prices={shelf:300,fridge:500,snack:220,plant:120,rug:90};
+const initial=[{x:1,y:1,type:'shelf'},{x:3,y:1,type:'shelf'},{x:5,y:1,type:'fridge'},{x:1,y:3,type:'shelf'},{x:3,y:3,type:'snack'},{x:5,y:3,type:'fridge'},{x:7,y:2,type:'shelf'},{x:7,y:4,type:'snack'}];
+let state={money:5000,inventory:{food:35,drink:35,daily:20},sales:0,visitors:0,staff:false,items:initial},mode='',selected=null;
+try{const v=JSON.parse(localStorage.getItem('convenience-v17')||'null');if(v&&Array.isArray(v.items)&&v.inventory)state={...state,...v}}catch(e){}
+if(!localStorage.getItem('convenience-v17')){try{const old=JSON.parse(localStorage.getItem('v10-racks')||'[]');if(Array.isArray(old))for(const f of old){const x=Math.round((f.x+6)/1.45),y=Math.round((f.z+5)/1.25);if(x>=0&&x<10&&y>=0&&y<7&&!state.items.some(q=>q.x===x&&q.y===y))state.items.push({x,y,type:['rack','fridge','plant','rug'].includes(f.type)?(f.type==='rack'?'shelf':f.type):'shelf'})}}catch(e){}}
+const save=()=>{try{localStorage.setItem('convenience-v17',JSON.stringify(state))}catch(e){}};
+const iso=(x,y,z=0)=>({x:OX+(x-y)*S*1.13,y:OY+(x+y)*S*.53-z*S});
+function poly(points,fill,stroke){ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(const p of points.slice(1))ctx.lineTo(p.x,p.y);ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
+function quad(x,y,w,h,color){poly([iso(x,y),iso(x+w,y),iso(x+w,y+h),iso(x,y+h)],color,'#d8c7a7')}
+function block(x,y,w,d,h,top,side,front){const a=iso(x,y,h),b=iso(x+w,y,h),cc=iso(x+w,y+d,h),dd=iso(x,y+d,h),aa=iso(x,y),bb=iso(x+w,y),c0=iso(x+w,y+d),d0=iso(x,y+d);poly([a,b,cc,dd],top,'#6f7f83');poly([b,cc,c0,bb],side,'#687780');poly([dd,cc,c0,d0],front,'#81939b')}
+function rect(x,y,w,h,col){ctx.fillStyle=col;ctx.fillRect(Math.round(x),Math.round(y),Math.ceil(w),Math.ceil(h))}
+function text(t,x,y,size=13,color='#fff'){ctx.font='bold '+size+'px system-ui';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#5b5b65';ctx.strokeText(t,x,y);ctx.fillStyle=color;ctx.fillText(t,x,y)}
+function itemDraw(o){const {x,y,type}=o;if(type==='rug'){quad(x+.08,y+.08,.84,.84,'#e9b75e');quad(x+.22,y+.22,.55,.55,'#fce2a0');return}
+if(type==='plant'){block(x+.23,y+.25,.52,.5,.6,'#ce8c5c','#a66c4b','#c17d50');const p=iso(x+.5,y+.5,1.35);rect(p.x-13,p.y-18,27,26,'#368c57');rect(p.x-8,p.y-27,17,17,'#71c57c');return}
+const h=type==='fridge'?2.5:1.65;block(x+.08,y+.08,.84,.84,h,colors[type],type==='fridge'?'#91b8d4':'#586d76',type==='fridge'?'#c9eafa':'#657f89');
+if(type==='fridge'){for(let k=0;k<3;k++){const p=iso(x+.55,y+.88,.5+k*.55);rect(p.x-16,p.y-9,27,11,'#8fcce3');for(let j=0;j<3;j++)rect(p.x-12+j*8,p.y-8,5,7,['#f6ad61','#7cce96','#d9839c'][j])}return}
+for(let level=0;level<3;level++){const p=iso(x+.48,y+.78,.52+level*.44);rect(p.x-21,p.y-7,43,12,'#344e63');for(let j=0;j<6;j++){const color=['#f9b756','#d78fa4','#8ec2e7','#9ccf7b','#f6d56f','#b5a6de'][(j+level+x)%6];rect(p.x-19+j*7,p.y-12,5,9,color);rect(p.x-18+j*7,p.y-11,2,2,'#fff3c6')}}}
+function character(x,y,shirt='#58b7d5',step=0){const p=iso(x+.5,y+.5,0);const k=Math.sin(step)*2;rect(p.x-7,p.y-16+k,6,12,'#35536a');rect(p.x+2,p.y-16-k,6,12,'#35536a');rect(p.x-9,p.y-33,18,19,shirt);rect(p.x-8,p.y-47,16,16,'#f3c6a4');rect(p.x-9,p.y-50,18,6,'#70503f');rect(p.x-6,p.y-40,3,3,'#333');rect(p.x+3,p.y-40,3,3,'#333');rect(p.x-13,p.y-30,4,13,'#eebc99');rect(p.x+9,p.y-30,4,13,'#eebc99')}
+const npcs=[];let last=performance.now(),spawnTime=0,worker={x:9,y:2,phase:0},cars=[{x:-10,y:8.4,color:'#ee675d'},{x:13,y:9.3,color:'#5c9fd2'}];
+function draw(){ctx.clearRect(0,0,W,H);
+rect(0,0,W,H,'#b9d7e2');for(let i=0;i<24;i++)for(let j=0;j<15;j++){const p=iso(i-10,j-2);if((i+j)%2===0)rect(p.x,p.y,3,3,'#cde3e8')}
+quad(-5,7,21,5,'#657888');for(let x=-4;x<16;x+=2.5)quad(x,9.35,1.2,.12,'#f7e8b5');
+quad(-5,6.6,21,.7,'#d7d8c9');for(let x=-4;x<16;x+=2.2)quad(x,6.9,1.2,.12,'#fff');
+for(const car of cars){block(car.x,car.y,1.8,.9,.6,car.color,'#8c3f42','#b85550');block(car.x+.35,car.y+.15,1.05,.6,.42,'#8dc8d9','#77b2c5','#a1d7e6')}
+for(let x=-4;x<=13;x+=3){const p=iso(x,7.3);rect(p.x-3,p.y-32,7,30,'#86694f');rect(p.x-17,p.y-55,34,30,'#54a977');rect(p.x-10,p.y-66,21,20,'#8ed2a0')}
+quad(-.4,-.4,11,8,'#f9e9b9');for(let x=0;x<11;x++)for(let y=0;y<8;y++)quad(x,y,1,1,(x+y)%2?'#fff0cd':'#f7e5bc');
+for(let y=0;y<8;y++)block(-.35,y,.18,1,2.5,'#f7df9c','#ebcb87','#f5e2b0');
+for(let x=0;x<11;x++)block(x,-.35,1,.18,2.5,'#f8e4b0','#dfc07d','#f2d596');
+for(let x=0;x<11;x++){if(x===5)continue;block(x,7.65,1,.14,1.65,'#f4f9e5','#a2d8d7','#d4f2e9')}
+block(4.7,7.6,1.6,.28,2.45,'#29b58d','#158c77','#28a58d');const sign=iso(5.5,7.8,2.7);text('MINI MART',sign.x,sign.y,14,'#fff6a2');
+const entry=iso(5.5,7.6);quad(5,7.7,1.1,.55,'#76bda5');
+const cashier={x:8,y:5,type:'cashier'};block(8,5,2,1,1.15,'#f7f4e9','#a77656','#c99771');const cp=iso(8.6,5.3,1.3);rect(cp.x-12,cp.y-17,24,17,'#334b5b');rect(cp.x-8,cp.y-15,16,8,'#8cdecd');
+const all=[...state.items].sort((a,b)=>a.x+a.y-b.x-b.y);for(const o of all)itemDraw(o);
+if(state.staff){character(worker.x,worker.y,'#4ca87d',worker.phase);const p=iso(worker.x+.5,worker.y+.5,2.1);text('員工',p.x,p.y,12,'#ffeaa2')}
+for(const n of npcs)character(n.x,n.y,n.color,n.phase);
+for(let i=0;i<3;i++){const p=iso(-1+i*2,8.1);character(-1+i*2,8.1,['#e8a3a0','#7bc7db','#e9bd7c'][i],performance.now()/350+i)}
+const p=iso(5.4,7.65,0);text('入口',p.x,p.y+22,13,'#ffffff');
+}
+function valid(x,y,ignore){return x>=0&&x<11&&y>=0&&y<8&&!(x>=4&&x<=6&&y>=6)&&!(x>=8&&x<=10&&y>=5)&&!state.items.some(o=>o!==ignore&&o.x===x&&o.y===y)}
+function selectMode(m){mode=m;selected=null;document.querySelectorAll('button[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));msg(m==='move'?'先點選自己擺放的設備，再點新位置':m==='delete'?'點選設備刪除並退還一半費用':m==='rotate'?'點選設備旋轉 90 度':'點店內空地擺放 '+m)}
+document.querySelectorAll('button[data-mode]').forEach(b=>b.onclick=()=>selectMode(b.dataset.mode));
+$('cancel').onclick=()=>{selectMode('');msg('已退出裝潢模式')};
+function pointToCell(px,py){const dx=(px-OX)/(S*1.13),dy=(py-OY)/(S*.53);return{x:Math.floor((dx+dy)/2),y:Math.floor((dy-dx)/2)}}
+c.addEventListener('pointerup',e=>{if(!mode)return;const r=c.getBoundingClientRect(),p=pointToCell((e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height),o=state.items.slice().reverse().find(q=>q.x===p.x&&q.y===p.y);
+if(mode==='delete'){if(!o)return msg('請點選已擺設備');state.items.splice(state.items.indexOf(o),1);state.money+=Math.floor((prices[o.type]||0)/2);msg('已刪除，退還半價')}
+else if(mode==='rotate'){if(!o)return msg('請點選設備');o.rotation=((o.rotation||0)+1)%4;msg('已旋轉設備（像素圖示方向更新待加強）')}
+else if(mode==='move'){if(!selected){if(!o)return msg('先點選設備');selected=o;return msg('已選取，請點新位置')}if(!valid(p.x,p.y,selected))return msg('這裡不能放置');selected.x=p.x;selected.y=p.y;selected=null;msg('設備移動成功')}
+else{if(!valid(p.x,p.y))return msg('這裡不能擺放');if(state.money<prices[mode])return msg('現金不足');state.money-=prices[mode];state.items.push({...p,type:mode});msg('擺放完成')}
+save();update();draw()});
+for(const [id,key] of [['food','food'],['drink','drink'],['daily','daily']])$(id).onclick=()=>{if(state.money<120)return msg('現金不足');state.money-=120;state.inventory[key]+=10;save();update();msg('已補充'+({food:'食品',drink:'飲料',daily:'日用品'}[key])+' 10 件')};
+$('hire').onclick=()=>{if(state.staff)return msg('已雇用店員');if(state.money<1200)return msg('現金不足');state.money-=1200;state.staff=true;save();update();msg('員工已上班，庫存不足時會補貨')};
+$('save').onclick=()=>{save();msg('已儲存到目前瀏覽器')};
+function update(){$('cash').textContent='💰 '+state.money.toLocaleString()+' G';$('stock').textContent='📦 '+Object.values(state.inventory).reduce((a,b)=>a+b,0)+' 件';$('sales').textContent='🧾 銷售 '+state.sales;$('staff').textContent=state.staff?'👩‍💼 1 位店員':'👩‍💼 尚未雇用';$('visitors').textContent='🚶 顧客 '+state.visitors}
+function tick(now){const dt=Math.min(.08,(now-last)/1000);last=now;spawnTime+=dt;
+if(spawnTime>3.5&&npcs.length<8){spawnTime=0;npcs.push({x:5.5,y:8.2,phase:0,color:['#f0a2a0','#7ebbdc','#c59fda','#e8c17e'][Math.floor(Math.random()*4)],stage:0,wait:0,target:state.items[Math.floor(Math.random()*state.items.length)]})}
+for(let i=npcs.length-1;i>=0;i--){const n=npcs[i];n.phase+=dt*8;let tx=5.5,ty=8.2;if(n.stage===0){tx=5.5;ty=6.5}else if(n.stage===1){tx=n.target?.x??3;ty=(n.target?.y??3)+1;n.wait+=dt;if(n.wait>9)n.stage=2}else if(n.stage===2){tx=7.6;ty=5.6}else if(n.stage===3){tx=5.5;ty=8.2}
+const dx=tx-n.x,dy=ty-n.y,d=Math.hypot(dx,dy);if(d>.09){const step=Math.min(d,dt*1.2);n.x+=dx/d*step;n.y+=dy/d*step}else if(n.stage===0)n.stage=1;else if(n.stage===2){n.stage=3;const keys=Object.keys(state.inventory).filter(k=>state.inventory[k]>0);if(keys.length){const k=keys[Math.floor(Math.random()*keys.length)];state.inventory[k]--;state.money+=55;state.sales++}state.visitors++;save();update()}else if(n.stage===3)npcs.splice(i,1)}
+if(state.staff){worker.phase+=dt*7;worker.x=9+Math.sin(now/1700)*.8;worker.y=2.2+Math.sin(now/2400)*1.2;if(Math.floor(now/14000)!==Math.floor((now-dt*1000)/14000)&&state.money>=100){const k=Object.keys(state.inventory).sort((a,b)=>state.inventory[a]-state.inventory[b])[0];if(state.inventory[k]<12){state.money-=100;state.inventory[k]+=12;save();update()}}}
+for(const car of cars){car.x+=dt*(car.y>9?-.7:.85);if(car.x>16)car.x=-11;if(car.x< -11)car.x=16}
+draw();requestAnimationFrame(tick)}
+update();requestAnimationFrame(tick);
+})();
+</script></body></html>
