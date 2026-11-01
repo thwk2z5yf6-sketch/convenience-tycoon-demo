@@ -48,7 +48,21 @@ const prices={rack:300,fridge:500,plant:120,rug:90};
 function saveOriginal(){try{localStorage.setItem('store-v25-original',JSON.stringify(furniture.map(g=>({x:g.position.x,z:g.position.z,rotation:g.rotation.y}))))}catch(e){}}try{const data=JSON.parse(localStorage.getItem('store-v25-original')||'null');if(Array.isArray(data))furniture.forEach((g,i)=>{if(data[i]&&Number.isFinite(data[i].x)&&Number.isFinite(data[i].z)){g.position.x=data[i].x;g.position.z=data[i].z;g.rotation.y=data[i].rotation||0}})}catch(e){}function saveExtra(){try{localStorage.setItem('v10-racks',JSON.stringify(extra.map(g=>({x:g.position.x,z:g.position.z,type:g.userData.kind,rotation:g.rotation.y}))))}catch(e){}}
 const ray=new THREE.Raycaster(),pointer=new THREE.Vector2(),floorPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0),hit=new THREE.Vector3();
 renderer.domElement.addEventListener('pointerup',e=>{if(!placing)return;const r=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(pointer,camera);
-if(placeType==='delete'||placeType==='rotate'||placeType==='move'){const hits=ray.intersectObjects([...extra,...furniture],true);if(!hits.length&&!(placeType==='move'&&selectedFurniture)){hud('請點選先前自行擺放的設備');return}let o=hits.length?hits[0].object:null;while(o&&!extra.includes(o)&&!furniture.includes(o))o=o.parent;if(!o&&!(placeType==='move'&&selectedFurniture))return;if(placeType==='rotate'){o.rotation.y+=Math.PI/2;saveExtra();saveOriginal();hud('設備已旋轉 90 度');return}if(placeType==='move'&&o){selectedFurniture=o;hud('已選取設備，請點新的空地');return}if(placeType==='move'&&selectedFurniture&&!o){}else if(o&&o.userData.original){hud('原始設備可移動或旋轉，但不能直接刪除');return}else if(o){scene.remove(o);extra.splice(extra.indexOf(o),1);cash+=Math.floor((prices[o.userData.kind]||0)/2);saveExtra();save();hud('已刪除設備，退還半價');return}}
+if(placeType==='delete'||placeType==='rotate'||placeType==='move'){
+ const hits=ray.intersectObjects([...extra,...furniture],true);
+ let chosen=hits.length?hits[0].object:null;
+ while(chosen&&!extra.includes(chosen)&&!furniture.includes(chosen))chosen=chosen.parent;
+ if(placeType==='move'){
+   if(!selectedFurniture){if(!chosen){hud('先點選貨架或冰箱，再點空地');return}selectedFurniture=chosen;hud('已選取設備！請點選店內地板的新位置');return}
+   // Second tap always targets the floor, even when the ray crosses another shelf.
+ }else{
+   if(!chosen){hud('請先點選設備');return}
+   if(placeType==='rotate'){chosen.rotation.y+=Math.PI/2;saveExtra();saveOriginal();hud('設備已旋轉');return}
+   if(chosen.userData.original){hud('原始設備可移動或旋轉，不可刪除');return}
+   scene.remove(chosen);extra.splice(extra.indexOf(chosen),1);
+   cash+=Math.floor((prices[chosen.userData.kind]||0)/2);saveExtra();save();hud('設備已刪除');return
+ }
+}
 if(placeType==='move'&&!selectedFurniture){hud('請先點選設備');return}if(!ray.ray.intersectPlane(floorPlane,hit))return;const x=Math.round(hit.x),z=Math.round(hit.z);
 if(x< -6||x>6||Math.abs(z)>5||furniture.some(g=>g!==selectedFurniture&&Math.hypot(g.position.x-x,g.position.z-z)<(g===fridge?2.1:1.7))||extra.some(g=>g!==selectedFurniture&&Math.hypot(g.position.x-x,g.position.z-z)<1.5)||Math.hypot(x-4.6,z-3.7)<2||Math.abs(x)<1.4&&z>4.7){hud('這個位置不能擺放');return}
 if(placeType==='move'){selectedFurniture.position.set(x,0,z);selectedFurniture=null;saveExtra();saveOriginal();hud('已移動設備');return}const price=prices[placeType];if(cash<price){hud('現金不足');return}cash-=price;addRack(x,z,placeType);saveExtra();save();hud('已成功擺放 '+placeType)});
