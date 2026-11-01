@@ -435,6 +435,19 @@ function moveFixtureWithContents(fixture,x,z){
  fixture.position.set(x,0,z);
  fixture.updateMatrixWorld(true);
 }
+// V127: remove the four small side-wall display stands that were restored from legacy v10-racks.
+// Keep a one-time backup and do not alter money, inventory, or other saved furniture.
+try{
+ if(localStorage.getItem('store-v127-side-stands-cleaned')!=='done'){
+  const candidates=extra.filter(g=>g&&g.parent&&['rack','snack','bakery','drinks'].includes(g.userData.kind)&&Math.abs(g.position.x)>=3.5&&g.position.z>=-5.5&&g.position.z<=1.5);
+  if(candidates.length===4){
+   localStorage.setItem('store-v127-side-stands-backup',JSON.stringify(candidates.map(g=>({x:g.position.x,z:g.position.z,type:g.userData.kind,rotation:g.rotation.y}))));
+   for(const g of candidates){g.parent?.remove(g);const index=extra.indexOf(g);if(index>=0)extra.splice(index,1)}
+   localStorage.setItem('v10-racks',JSON.stringify(extra.map(g=>({x:g.position.x,z:g.position.z,type:g.userData.kind,rotation:g.rotation.y}))));
+   localStorage.setItem('store-v127-side-stands-cleaned','done');
+  }
+ }
+}catch(e){console.warn('Side stand cleanup skipped',e)}
 const furniture=[...shelves,fridge];
 const originalFixtures=[...furniture];
 // One-time blank-floor reset, preserving a recoverable copy of the old layout.
