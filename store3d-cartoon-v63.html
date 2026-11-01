@@ -154,6 +154,13 @@ let categoryStock={food:10,drink:10,snack:10},categorySold={food:0,drink:0,snack
 try{const d=JSON.parse(localStorage.getItem('store-v37-products')||'null');if(d){categoryStock={...categoryStock,...d.stock};categorySold={...categorySold,...d.sold};workerLevel=Math.max(1,Math.min(5,d.workerLevel||1));inventory=Object.values(categoryStock).reduce((a,b)=>a+b,0)}}catch(e){}
 function saveProducts(){try{localStorage.setItem('store-v37-products',JSON.stringify({stock:categoryStock,sold:categorySold,workerLevel}))}catch(e){}}
 for(const [id,info] of Object.entries(productTypes))document.getElementById(id).onclick=()=>{if(cash<info.cost)return hud('現金不足');cash-=info.cost;expenses+=info.cost;categoryStock[id]+=info.units;inventory+=info.units;saveProducts();save();hud('已補充'+info.label+' '+info.units+' 件')};
+// V63 product assortment: extra purchasable varieties share the existing three warehouse categories.
+const extraProducts=[
+['🍙 飯糰', 'food',95,6],['🍱 便當','food',180,6],['🥪 三明治','food',125,7],['🍜 泡麵','food',110,8],
+['☕ 咖啡','drink',135,7],['🧃 果汁','drink',140,8],['🥛 牛奶','drink',125,7],['🫖 茶飲','drink',110,8],
+['🍫 巧克力','snack',115,8],['🍟 洋芋片','snack',105,8],['🍬 糖果','snack',90,9],['🍰 蛋糕','snack',160,6]
+];
+for(const [name,kind,cost,units] of extraProducts){const b=document.createElement('button');b.textContent=name+' $'+cost;b.title='進貨 '+units+' 件（'+productTypes[kind].label+' 類）';b.onclick=()=>{if(cash<cost)return hud('現金不足');cash-=cost;expenses+=cost;categoryStock[kind]+=units;inventory+=units;saveProducts();save();hud('進貨 '+name+' '+units+' 件')};stockMenu.querySelector('.menu-buttons').appendChild(b)}
 const upgradeWorker=document.createElement('button');upgradeWorker.textContent='⭐ 升級補貨員 $'+600*workerLevel;upgradeWorker.onclick=()=>{if(!staff)return hud('請先雇用補貨員');if(workerLevel>=5)return hud('補貨員已達滿級');const cost=600*workerLevel;if(cash<cost)return hud('員工升級需要 $'+cost);cash-=cost;expenses+=cost;workerLevel++;upgradeWorker.textContent='⭐ 升級補貨員 $'+600*workerLevel;saveProducts();save();hud('補貨員升級 Lv.'+workerLevel+'：移動與補貨效率提高')};document.getElementById('hire').parentElement.appendChild(upgradeWorker);
 
 const expansion=new THREE.Group();scene.add(expansion);let sideLevel=0;try{sideLevel=Math.min(2,Math.max(0,Number(localStorage.getItem('store-v49-side-level'))||0))}catch(e){}
