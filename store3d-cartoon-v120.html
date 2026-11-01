@@ -1131,7 +1131,7 @@ function runAutoStock(){
    const warehouse=()=>Math.max(0,Number(sku?skuWarehouse[sku]:categoryStock[kind])||0);
    if(warehouse()<Math.max(1,12-shelfStock(g))&&purchases<maxPurchases){
     const cost=Number(product.cost)||0,units=Number(product.units)||0;
-    if(cost>0&&units>0&&cash-cost>=3000){
+    if(cost>0&&units>0&&cash-cost>=5000){
      cash-=cost;expenses+=cost;
      if(sku)skuWarehouse[sku]=warehouse()+units;else categoryStock[kind]=warehouse()+units;
      purchases++;
@@ -1149,6 +1149,86 @@ function runAutoStock(){
  }
  const el=document.getElementById('autoStockStatus');if(el)el.textContent='自動管理：'+autoStockLast+'｜累計進貨 '+autoStockBought+' 批、補貨 '+autoStockFilled+' 座｜執行 '+autoStockTicks+' 次';
 }
+/* V132: bounded offline settlement, using real shelf inventory; no duplicate claims. */
+const v132ClockKey='store-v132-last-active';
+const v132ReportKey='store-v132-last-report';
+const v132MaxOfflineMs=24*60*60*1000;
+let v132LastActive=Date.now();
+try{const n=Number(localStorage.getItem(v132ClockKey));if(Number.isFinite(n)&&n>0&&n<=Date.now())v132LastActive=n}catch(e){}
+function v132Stamp(){try{localStorage.setItem(v132ClockKey,String(Date.now()))}catch(e){}}
+function v132SettleOffline(){
+ const now=Date.now(),elapsed=Math.max(0,Math.min(v132MaxOfflineMs,now-v132LastActive));
+ v132Stamp(); // claim first to prevent double settlement after refresh
+ if(elapsed<60000)return;
+ let units=0,revenue=0;
+ if(cashierHired){
+  const fixtures=[...new Set([...furniture,...extra])].filter(g=>g&&g.visible!==false&&g.userData&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind));
+  let remaining=Math.floor(elapsed/300000); // at most one purchase per five real minutes
+  for(const g of fixtures){
+   if(remaining<=0)break;
+   const available=Math.max(0,Math.floor(shelfStock(g)));
+   const sold=Math.min(available,remaining);
+   if(!sold)continue;
+   g.userData.shelfStock=available-sold;
+   remaining-=sold;units+=sold;revenue+=sold*Math.max(1,Number(price)||49);
+   const sku=skuFor(g),kind=fixtureKind(g);
+   if(sku)skuSold[sku]=(skuSold[sku]||0)+sold;
+   else if(categorySold[kind]!==undefined)categorySold[kind]+=sold;
+  }
+ }
+ if(units){
+  cash+=revenue;earnings+=revenue;sales+=units;
+  saveShelfStock();saveProducts();saveSkus();save();
+  try{recordFinance('income','V132 離線銷售 '+units+' 件',revenue)}catch(e){}
+  try{refreshFacings();refreshBusiness()}catch(e){}
+ }
+ const hours=(elapsed/3600000).toFixed(1);
+ const report='離線 '+hours+' 小時（最多24小時），售出 '+units+' 件，收入 autoStockStatus.id='autoStockStatus';
+autoStockStatus.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #4b9e9e;border-radius:10px;background:#183b48;color:#d4f7ef;font-size:12px';
+autoStockStatus.textContent='自動管理：等待首次檢查';
+document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(autoStockStatus);
+const stockCheckButton=document.createElement('button');
+stockCheckButton.type='button';stockCheckButton.textContent='🔄 立即檢查並自動補貨';
+stockCheckButton.onclick=()=>{try{runAutoStock()}catch(e){autoStockStatus.textContent='⚠️ 補貨檢查失敗：'+e.message}};
+autoStockStatus.parentElement?.appendChild(stockCheckButton);
+setInterval(()=>{try{runAutoIncomeTasks()}catch(e){console.error('Auto task',e)}},2500);
+setInterval(()=>{try{runAutoStock()}catch(e){console.error('Auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 自動補貨錯誤：'+e.message}},5500);
+setTimeout(()=>{try{runAutoStock()}catch(e){console.error('Initial auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 初次補貨錯誤：'+e.message}},1200);
+
+}catch(e){error(e)}
+</script>
+<script>
+/* VNext independent save backup: no existing storage keys are changed. */
+(function(){
+ const btn=document.createElement('button');
+ btn.type='button';btn.textContent='💾 備份遊戲存檔';
+ btn.style.cssText='position:fixed;right:12px;bottom:calc(158px + env(safe-area-inset-bottom));z-index:1300;background:#164a54;color:#fff;border:1px solid #74d7bd;border-radius:12px;padding:9px 12px;font:700 12px system-ui;box-shadow:0 3px 12px #0005';
+ btn.addEventListener('click',function(){
+  try{
+   const data={format:'convenience-tycoon-localstorage-backup',version:1,createdAt:new Date().toISOString(),origin:location.origin,items:{}};
+   for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&/^(store|store3d)/i.test(key))data.items[key]=localStorage.getItem(key)}
+   if(!Object.keys(data.items).length){alert('目前沒有找到本機遊戲存檔');return}
+   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+   const url=URL.createObjectURL(blob),a=document.createElement('a');
+   a.href=url;a.download='convenience-tycoon-backup-'+new Date().toISOString().slice(0,10)+'.json';
+   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+  }catch(e){alert('備份失敗：'+e.message)}
+ });
+ document.body.appendChild(btn);
+})();
+</script></body></html>+revenue+(cashierHired?'':'；未雇用收銀員');
+ try{localStorage.setItem(v132ReportKey,report)}catch(e){}
+ const el=document.getElementById('v132OfflineReport');if(el)el.textContent=report;
+}
+const v132OfflineReport=document.createElement('div');
+v132OfflineReport.id='v132OfflineReport';
+v132OfflineReport.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #69b7a2;border-radius:10px;background:#173c47;color:#d8fff2;font-size:13px';
+v132OfflineReport.textContent='V132 離線收益：等待結算';
+document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(v132OfflineReport);
+setTimeout(()=>{try{v132SettleOffline()}catch(e){console.error('V132 offline settlement',e)}},1800);
+setInterval(v132Stamp,30000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')v132Stamp()});
+window.addEventListener('pagehide',v132Stamp);
 const autoStockStatus=document.createElement('div');autoStockStatus.id='autoStockStatus';
 autoStockStatus.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #4b9e9e;border-radius:10px;background:#183b48;color:#d4f7ef;font-size:12px';
 autoStockStatus.textContent='自動管理：等待首次檢查';
