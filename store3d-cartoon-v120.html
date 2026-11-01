@@ -806,7 +806,7 @@ const skuShelfSelect=document.createElement('select'),skuProductSelect=document.
 for(const [id,label] of skuItems){const o=document.createElement('option');o.value=id;o.textContent=label;skuProductSelect.appendChild(o)}
 for(const el of [skuShelfSelect,skuProductSelect])el.style.cssText='max-width:100%;width:100%;margin:3px 0;padding:8px;border-radius:7px';
 skuAssignButton.textContent='指定商品';skuRestockButton.textContent='📦 從倉庫補貨';skuShelfPanel.append(skuShelfSelect,skuProductSelect,skuAssignButton,skuRestockButton,skuShelfInfo);
-const stockDetails=[...document.querySelectorAll('.game-menu details')].find(d=>d.querySelector('summary')?.textContent.includes('商品補貨'));stockDetails?.querySelector('.menu-buttons')?.appendChild(skuShelfPanel);
+const stockDetails=[...document.querySelectorAll('.game-menu details')].find(d=>/商品(補貨|進貨)/.test(d.querySelector('summary')?.textContent||''));stockDetails?.querySelector('.menu-buttons')?.appendChild(skuShelfPanel);
 function updateSkuShelfList(){const old=skuShelfSelect.value;skuShelfSelect.innerHTML='';for(const g of [...furniture,...extra])if(g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind)){const o=document.createElement('option');o.value=fixtureId(g);o.textContent=fixtureId(g)+'｜'+(skuFor(g)?skuCatalog[skuFor(g)].label:'一般商品')+'｜架上 '+shelfStock(g);skuShelfSelect.appendChild(o)}if([...skuShelfSelect.options].some(o=>o.value===old))skuShelfSelect.value=old}
 function chosenSkuShelf(){return [...furniture,...extra].find(g=>fixtureId(g)===skuShelfSelect.value)}
 skuAssignButton.onclick=()=>{const g=chosenSkuShelf(),sku=skuProductSelect.value;if(!g)return skuShelfInfo.textContent='請先購買貨架';if(shelfStock(g)>0)return skuShelfInfo.textContent='請先將貨架售完再更換商品';g.userData.skuId=sku;g.userData.productKind=skuCatalog[sku].kind;skuAssignments[fixtureId(g)]=sku;saveSkus();saveFixtureKinds();refreshFacings();updateSkuShelfList();skuShelfInfo.textContent='已指定 '+skuCatalog[sku].label};
@@ -815,7 +815,16 @@ skuShelfSelect.onchange=()=>{const sku=skuFor(chosenSkuShelf());if(sku)skuProduc
 const shortagePanel=document.createElement('section');shortagePanel.style.cssText='background:#102d39;color:white;padding:12px;border-radius:12px;margin-top:10px';
 const shortageTitle=document.createElement('strong');shortageTitle.textContent='📋 缺貨明細｜每座貨架';
 const shortageInfo=document.createElement('p'),shortageList=document.createElement('div'),shortageRefresh=document.createElement('button');shortageRefresh.textContent='🔄 手動更新';
-shortagePanel.append(shortageTitle,shortageInfo,shortageRefresh,shortageList);skuShelfPanel.append(shortagePanel);
+shortagePanel.append(shortageTitle,shortageInfo,shortageRefresh,shortageList);
+const shortageDetails=document.createElement('details');
+shortageDetails.className='shortage-details';
+shortageDetails.style.cssText='margin:8px 0;border:1px solid #4a8990;border-radius:12px;overflow:hidden';
+const shortageSummaryEl=document.createElement('summary');shortageSummaryEl.textContent='📋 缺貨明細';shortageSummaryEl.style.cssText='cursor:pointer;padding:14px;font-weight:bold;background:#20596d;color:white;font-size:17px';
+shortageDetails.append(shortageSummaryEl,shortagePanel);
+const menuRoot=stockDetails?.parentElement||document.querySelector('.game-menu');
+if(stockDetails&&menuRoot)stockDetails.insertAdjacentElement('afterend',shortageDetails);
+else if(menuRoot)menuRoot.prepend(shortageDetails);
+shortageDetails.addEventListener('toggle',()=>{if(shortageDetails.open)refreshShortageDetails()});
 let lastShortageReason='尚無紀錄';
 function refreshShortageDetails(){
  shortageList.replaceChildren();const fixtures=[...new Set([...furniture,...extra])].filter(g=>g.visible!==false&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind));
