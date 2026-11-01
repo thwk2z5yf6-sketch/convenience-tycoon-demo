@@ -990,4 +990,24 @@ const button=document.createElement('button');button.type='button';button.textCo
 button.addEventListener('click',()=>{try{const data=snapshot();if(!Object.keys(data).length){alert('目前找不到遊戲存檔，請先確認遊戲已正常載入。');return}const backup={format:'convenience-tycoon-localstorage-backup',version:2,createdAt:new Date().toISOString(),source:'this-device',origin:location.origin,page:location.pathname,entryCount:Object.keys(data).length,data};const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='convenience-tycoon-backup-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);alert('已產生此裝置的存檔備份檔。請確認下載成功並妥善保存；此操作不會覆蓋遊戲資料。')}catch(e){alert('備份失敗：'+e.message)}});
 document.body.appendChild(button);
 })();
+</script><script id="store-safe-import-v1">
+(()=>{'use strict';
+const keys=['store-v40-fixture-categories','store-v83-city-theme','store-v45-layout-reset','store-v35-deleted','v10-racks','store-v126-four-racks-removed'];
+const btn=document.createElement('button');btn.type='button';btn.textContent='📲 匯入手機配置';btn.style.cssText='position:fixed;right:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:2147483000;background:#194d65;color:#fff;border:2px solid #70e5c6;border-radius:14px;padding:12px 15px;font:700 14px system-ui;box-shadow:0 4px 18px #0009;cursor:pointer';
+const picker=document.createElement('input');picker.type='file';picker.accept='.json,application/json';picker.style.display='none';document.body.appendChild(picker);
+btn.onclick=()=>picker.click();
+picker.onchange=async()=>{const file=picker.files?.[0];picker.value='';if(!file)return;try{
+ const backup=JSON.parse(await file.text());
+ if(backup.format!=='convenience-tycoon-localstorage-backup'||backup.version!==1||!backup.data||typeof backup.data!=='object'||Array.isArray(backup.data)||backup.origin!==location.origin){alert('檔案格式或網站來源不符，未變更資料。');return}
+ const changes=keys.filter(k=>Object.prototype.hasOwnProperty.call(backup.data,k)&&typeof backup.data[k]==='string');
+ if(!changes.length){alert('此備份沒有可匯入的商店配置資料。');return}
+ for(const k of changes){const v=backup.data[k];if(v.length>100000)throw Error('資料過大：'+k);if(['store-v40-fixture-categories','store-v35-deleted','v10-racks'].includes(k))JSON.parse(v)}
+ if(!confirm('即將以手機備份覆蓋本裝置的 '+changes.length+' 項商店配置（不含現金、庫存及評價）。系統會先在此瀏覽器保留原始資料備份。確定繼續？'))return;
+ const old={};for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('store-')||k==='v10-racks'))old[k]=localStorage.getItem(k)}
+ const recovery='store-safe-import-recovery-'+Date.now();localStorage.setItem(recovery,JSON.stringify({format:'convenience-tycoon-import-recovery',createdAt:new Date().toISOString(),data:old}));
+ for(const k of changes)localStorage.setItem(k,backup.data[k]);
+ alert('配置已匯入。原本存檔已在本裝置保留復原備份，接下來重新載入遊戲。');location.reload();
+ }catch(e){alert('匯入失敗，請確認備份檔：'+e.message)}};
+document.body.appendChild(btn);
+})();
 </script></body></html>
