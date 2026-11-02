@@ -1107,7 +1107,7 @@ function walkNpc(c,dt){
  const step=Math.min(d,dt*(c.speed||1.15)),nx=p.position.x+dx/d*step,nz=p.position.z+dz/d*step;
  if(!npcSafeAt(c,nx,nz)){
   c.repath=(c.repath||0)+dt;c.stall=(c.stall||0)+dt;
-  if(c.mode!=='queue'&&!c.yielding&&c.stall>.2){
+  if(c.mode!=='pay'&&!c.yielding&&c.stall>.2){
    const sideOrder=(c.avoidSide||(c.avoidSide=customers.indexOf(c)%2?1:-1))>0?[1,-1]:[-1,1];
    const sideStep=Math.min(.34,Math.max(.16,dt*(c.speed||1.15)*1.7));
    for(const side of sideOrder){
@@ -1118,7 +1118,7 @@ function walkNpc(c,dt){
    }
   }
   if(c.repath>.55){c.repath=0;if(!c.yielding)setDestination(c,c.goal.x,c.goal.z)}
-  if(c.stall>1.2&&c.mode!=='queue'&&!c.yielding){
+  if(c.stall>1.2&&c.mode!=='pay'&&!c.yielding){
    const offsets=[[1.2,0],[-1.2,0],[0,1.2],[0,-1.2],[.9,.9],[-.9,.9],[.9,-.9],[-.9,-.9]];
    const options=offsets.map(([ox,oz])=>({x:p.position.x+ox,z:p.position.z+oz,r:null}))
     .filter(q=>npcSafeAt(c,q.x,q.z,.82))
