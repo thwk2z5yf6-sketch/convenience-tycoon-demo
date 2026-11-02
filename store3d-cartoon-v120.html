@@ -1178,7 +1178,7 @@ function v132Prepare(){
  for(const g of fixtures){if(remaining<=0)break;const n=Math.min(remaining,Math.max(0,Math.floor(shelfStock(g))));if(n){items.push({id:fixtureId(g),n});units+=n;remaining-=n}}
  revenue=units*Math.max(1,Number(price)||49);
  const reason=!cashierHired?'尚未雇用收銀員':!units?'貨架缺貨，或離線時間不足 5 分鐘':'領取後將扣除貨架庫存並入帳';
- v132State.pending={id:String(now),elapsed,units,revenue,items,reason};
+ v132State.pending={id:String(now),elapsed,units,revenue,unitPrice:Math.max(1,Number(price)||49),items,reason};
  v132State.lastActive=now;
  if(v132Persist())v132ShowPending();
 }
@@ -1187,15 +1187,17 @@ v132ClaimBtn.addEventListener('click',()=>{
  // Idempotent recovery: save a transaction marker inside the primary game save.
  const txKey='store-v132-claimed-'+p.id;
  if(localStorage.getItem(txKey)==='done'){v132State.pending=null;v132Persist();v132Overlay.style.display='none';return}
+ if(localStorage.getItem(txKey)==='processing'){v132ClaimBtn.disabled=true;v132Overlay.querySelector('#v132RewardReason').textContent='上次領取尚未確認，為避免重複入帳已暫停領取。請先備份存檔。';return}
  v132ClaimBtn.disabled=true;
  try{
   // Prepare a full backup of affected keys before changing stock/cash.
-  const keys=['store3d-v6','store-v37-products','store-v72-skus'];
+  const keys=['store3d-v6','store-v37-products','store-v72-skus','store-v59-shelf-stock'];
   const snapshot={};for(const k of keys)snapshot[k]=localStorage.getItem(k);
+  localStorage.setItem('store-v132-preclaim-'+p.id,JSON.stringify(snapshot));
   const all=[...new Set([...furniture,...extra])];
   const selected=p.items.map(it=>({g:all.find(g=>fixtureId(g)===it.id),n:it.n})).filter(x=>x.g);
   const actual=selected.reduce((sum,x)=>sum+Math.min(x.n,Math.max(0,Math.floor(shelfStock(x.g)))),0);
-  const paid=actual*Math.max(1,Number(price)||49);
+  const paid=actual*Math.max(1,Number(p.unitPrice)||49);
   // Mark before credit; failed writes do not silently double-credit.
   localStorage.setItem(txKey,'processing');
   for(const x of selected){const n=Math.min(x.n,Math.max(0,Math.floor(shelfStock(x.g))));x.g.userData.shelfStock-=n;const sku=skuFor(x.g),kind=fixtureKind(x.g);if(sku)skuSold[sku]=(skuSold[sku]||0)+n;else if(categorySold[kind]!==undefined)categorySold[kind]+=n}
