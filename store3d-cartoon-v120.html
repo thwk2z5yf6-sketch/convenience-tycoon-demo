@@ -265,6 +265,11 @@ footer{color:#668073}
  body.mobile-immersive #mobileGameBar{opacity:.92}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+/* ensure the refreshed controls win against legacy night-mode rules */
+.game-menu details:not([open]){border-color:#d2e1d4!important;background:linear-gradient(160deg,#fffef8,#f4f7ee)!important}
+.game-menu summary{background:linear-gradient(100deg,#e8f4e8,#f8f5e9)!important;border-bottom:1px solid #dbe7d9!important;color:#254b39!important}
+.game-menu details[open] summary{background:linear-gradient(100deg,#dceddf,#f6f0dc)!important;color:#155239!important}
+#stage #message{background:#fffdf2ed!important;border:1px solid #ffffff9c!important;color:#23483a!important;box-shadow:0 8px 20px #18382a22!important}
 </style></head><body><header><h1>🏪 便利商店大亨 <span class="v133-version">V133</span></h1><small>🌿 街角門市經營 · V133 測試版</small></header><div id="stage"><div id="landscapeHint">📱 建議將手機橫放遊玩</div><div id="message">正在載入真正的 3D 場景與人物模型…</div><div id="fallback"><h2>3D 模型未能載入</h2><p>目前沒有啟動 3D 繪圖。請截圖這裡顯示的錯誤訊息。</p><p id="err"></p></div></div><div class="game-menu">
 <details open><summary>🏪 經營管理</summary><div class="menu-buttons"><button id="npc">📣 廣告宣傳 $350</button><button id="price">🏷️ 調整售價</button><button id="buy">📦 進貨 10 件 $150</button><button id="save">💾 儲存進度</button></div></details>
 <details><summary>👥 員工管理</summary><div class="menu-buttons"><button id="cashier">👩‍💼 雇用收銀員 $900</button><button id="hire">🧑‍🔧 雇用補貨員 $1200</button></div></details>
