@@ -313,6 +313,18 @@ footer{color:#668073}
 .sku-price-row input{width:100%;min-width:0;padding:6px!important;font-size:14px!important;font-weight:800}
 .sku-price-row .sku-margin{grid-column:1/-1;color:#436653;font-size:11px}
 #saveSkuPrices{margin-top:8px;width:100%;min-height:42px!important}
+
+.branch-management-panel{margin:0!important;padding:10px!important;border:0!important;border-radius:0 0 14px 14px!important;background:#f7f8ee!important;color:#23483a!important}
+.branch-help{margin:0 0 9px;color:#61776a;font-size:12px}
+.branch-card{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 0;border-bottom:1px solid #dbe7d9}
+.branch-card-details{display:flex;flex-direction:column;gap:3px;min-width:0}.branch-card-details strong{color:#254b39}.branch-card-details small{color:#6a8176;font-size:11px}
+.branch-view-button,#branchBuy{min-height:40px!important;padding:8px 11px!important;border:1px solid #b9d6bd!important;border-radius:11px!important;background:linear-gradient(135deg,#e7f3e8,#d9eddf)!important;color:#155239!important;font-weight:850!important;white-space:nowrap}
+#branchBuy{width:100%;margin-top:9px;background:linear-gradient(135deg,#fff1c6,#ffe29b)!important;color:#624816!important}
+#branchViewBar{display:none;position:absolute;z-index:1900;top:max(12px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);align-items:center;gap:12px;width:min(760px,calc(100% - 24px));padding:10px 13px;border:1px solid #c4dcc6;border-radius:16px;background:#fffdf2ed;color:#23483a;box-shadow:0 10px 28px #10291f38;backdrop-filter:blur(14px)}
+#branchViewBar>div{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+#branchViewName{font-size:15px}#branchViewStats{font-size:11px;color:#61776a}
+#branchViewBar button{flex:none;padding:9px 12px;border:1px solid #bdd6c1;background:#e6f2e7;color:#1c5038}
+@media(max-width:950px){.branch-card{align-items:flex-start}.branch-card-details small{white-space:normal}.branch-view-button{font-size:11px!important;padding:7px!important}#branchViewBar{top:max(8px,env(safe-area-inset-top));width:calc(100% - 16px);padding:8px 9px;gap:8px}#branchViewName{font-size:13px}#branchViewStats{font-size:10px}#branchViewBar button{padding:7px 9px;font-size:11px}}
 </style></head><body><header><h1>🏪 便利商店大亨 <span class="v133-version">V133</span></h1><small>🌿 街角門市經營 · V133 測試版</small></header><div id="stage"><div id="landscapeHint">📱 建議將手機橫放遊玩</div><div id="message">正在載入真正的 3D 場景與人物模型…</div><div id="fallback"><h2>3D 模型未能載入</h2><p>目前沒有啟動 3D 繪圖。請截圖這裡顯示的錯誤訊息。</p><p id="err"></p></div></div><div class="game-menu">
 <details open><summary>🏪 經營管理</summary><div class="menu-buttons"><button id="npc">📣 廣告宣傳 $350</button><button id="price">🏷️ 調整售價</button><button id="buy">📦 進貨 10 件 $150</button><button id="save">💾 儲存進度</button></div></details>
 <details><summary>👥 員工管理</summary><div class="menu-buttons"><button id="cashier">👩‍💼 雇用收銀員 $900</button><button id="hire">🧑‍🔧 雇用補貨員 $1200</button></div></details>
@@ -941,14 +953,47 @@ for(const {node,title} of extraPanels){
 mainMenuRoot.addEventListener('click',e=>{const summary=e.target.closest('summary');if(!summary||!mainMenuRoot.contains(summary))return;const current=summary.closest('details');mainMenuRoot.querySelectorAll('details[open]').forEach(d=>{if(d!==current)d.open=false})});
 function renderFinance(){const el=document.getElementById('financeSummary');if(!el)return;const income=Math.max(0,earnings-financeBase.earnings),outgo=Math.max(0,expenses-financeBase.expenses);el.innerHTML='<span>💵 現金 $'+cash+'</span><span>📈 本版累計收入 $'+income+'</span><span>📉 本版累計支出 $'+outgo+'</span><span>📊 本版淨額 $'+(income-outgo)+'</span>';const root=document.getElementById('financeEntries');root.replaceChildren();for(const entry of financeLedger.slice(-25).reverse()){const row=document.createElement('div');row.style.cssText='padding:6px 0;border-bottom:1px solid #ffffff25';row.textContent=entry.at+'｜'+entry.label+'｜'+(entry.type==='income'?'+':'-')+'$'+entry.amount;root.appendChild(row)}}
 renderFinance();
-// V96 chain management: branches are independent accounting operations, not yet 3D interiors.
+// V96/V133 chain management. Legacy accounting fields stay intact; IDs are additive.
 let branches=[];let branchClock=0;try{const d=JSON.parse(localStorage.getItem('store-v96-branches')||'[]');if(Array.isArray(d))branches=d}catch(e){}
+branches.forEach((b,i)=>{if(!b.id)b.id='branch-'+(i+2);if(!b.name)b.name='第 '+(i+2)+' 分店';b.revenue=Math.max(0,Number(b.revenue)||0);b.cost=Math.max(0,Number(b.cost)||0)});
 function saveBranches(){try{localStorage.setItem('store-v96-branches',JSON.stringify(branches))}catch(e){}}
-const branchPanel=document.createElement('section');branchPanel.style.cssText='margin:10px;padding:12px;border-radius:15px;background:#183d4b;color:#fff';
-branchPanel.innerHTML='<strong>🏬 連鎖分店經營</strong><p style="font-size:12px">總店為目前 3D 店面；分店先以獨立營運帳目管理。</p><div id="branchList"></div><button id="branchBuy" style="width:100%;padding:10px;border:0;border-radius:9px;background:#168c73;color:white">＋ 開設分店 $12,000</button>';
-document.querySelector('.game-menu').before(branchPanel);
-function renderBranches(){const el=document.getElementById('branchList');el.replaceChildren();for(const b of branches){const row=document.createElement('div');row.style.cssText='padding:7px 0;border-bottom:1px solid #ffffff22';row.textContent='🏪 '+b.name+'｜收入 $'+b.revenue+'｜成本 $'+b.cost+'｜淨利 $'+(b.revenue-b.cost);el.appendChild(row)}document.getElementById('branchBuy').disabled=cash<12000||branches.length>=8}
-document.getElementById('branchBuy').onclick=()=>{if(cash<12000||branches.length>=8)return;cash-=12000;expenses+=12000;recordFinance('expense','開設分店',12000);branches.push({name:'第 '+(branches.length+2)+' 分店',revenue:0,cost:0});saveBranches();save();renderBranches();refreshBusiness()};
+const branchPanel=document.createElement('section');branchPanel.className='branch-management-panel';branchPanel.innerHTML='<p class="branch-help">分店會獨立累計收入與成本。選「查看店面」可進入分店巡視畫面。</p><div id="branchList"></div><button id="branchBuy" type="button">＋ 開設分店 $12,000</button>';
+const branchSection=document.createElement('details');branchSection.className='v133-branch-section';const branchSummary=document.createElement('summary');branchSummary.textContent='🏬 分店管理';branchSection.append(branchSummary,branchPanel);document.querySelector('.game-menu').appendChild(branchSection);
+const branchViewGroup=new THREE.Group();branchViewGroup.name='branchViewGroup';branchViewGroup.visible=false;scene.add(branchViewGroup);
+const branchFloor=material(0xe8ddc9),branchWall=material(0xf7efdc),branchTrim=material(0x28734f),branchWood=material(0xb8845b),branchMetal=material(0x87999a,.35,.45),branchGlass=material(0xbce2e8,.08,.2,.45);
+cube(13,.16,12,branchFloor,0,-.16,0,branchViewGroup);
+cube(13,3.5,.2,branchWall,0,1.75,-6,branchViewGroup);
+cube(.2,3.5,12,branchWall,-6.4,1.75,0,branchViewGroup);cube(.2,3.5,12,branchWall,6.4,1.75,0,branchViewGroup);
+cube(4.2,3.5,.2,branchWall,-4.4,1.75,6,branchViewGroup);cube(4.2,3.5,.2,branchWall,4.4,1.75,6,branchViewGroup);cube(4.6,.25,.25,branchTrim,0,3.2,5.9,branchViewGroup);
+cube(4.6,.7,.22,branchTrim,0,2.72,5.85,branchViewGroup);cube(3.6,.14,.08,material(0xf3c56b),0,2.72,5.71,branchViewGroup);
+for(const x of [-3.35,-.15,3.05]){cube(1.05,.14,4.2,branchWood,x,.38,.1,branchViewGroup);cube(1.05,.11,4.2,branchTrim,x,.88,.1,branchViewGroup);cube(1.05,.11,4.2,branchTrim,x,1.43,.1,branchViewGroup);for(const z of [-1.55,-.72,.11,.94,1.77])for(const y of [.62,1.17,1.72])cube(.26,.27,.25,material([0xe9a35b,0x6cb2a0,0xe1c36d,0x8bb7d2,0xd98178][Math.abs(Math.round((x+z*10+y*3))%5)]),x,z*0+y,z,branchViewGroup)}
+cube(1.25,2.3,.9,branchMetal,-5.15,1.15,-.5,branchViewGroup);cube(1.08,1.65,.07,branchGlass,-5.15,1.2,-.03,branchViewGroup);for(let i=0;i<4;i++)cube(.72,.24,.16,material([0x7fc6d8,0xe4ab74,0x91c79d][i%3]),-5.15,.48+i*.39,.02,branchViewGroup);
+cube(2.15,.9,.88,branchWood,4.45,.46,2.35,branchViewGroup);cube(2.25,.14,.98,branchTrim,4.45,.98,2.35,branchViewGroup);cube(.42,.3,.3,branchMetal,4.15,1.2,2.1,branchViewGroup);
+const branchCashier=makeFallbackPerson();branchCashier.position.set(4.4,0,1.65);branchViewGroup.add(branchCashier);
+for(const [x,z] of [[-4.3,3.9],[-.8,4.05],[2.2,-3.7]]){const person=makeFallbackPerson();person.position.set(x,0,z);branchViewGroup.add(person)}
+const branchViewBar=document.createElement('div');branchViewBar.id='branchViewBar';branchViewBar.innerHTML='<div><strong id="branchViewName">分店巡視</strong><span id="branchViewStats"></span></div><button id="branchReturn" type="button">↩ 返回總店</button>';stage.appendChild(branchViewBar);
+let branchViewSnapshot=null,activeBranchId=null;
+const branchHomeView={camera:null,target:null,background:null,fogColor:null,messageDisplay:''};
+function updateBranchViewBar(branch){document.getElementById('branchViewName').textContent='🏬 '+branch.name+'｜分店巡視';document.getElementById('branchViewStats').textContent='收入 $'+branch.revenue+' · 成本 $'+branch.cost+' · 淨利 $'+(branch.revenue-branch.cost)}
+function openBranchView(branch){
+ if(!branchViewSnapshot){branchViewSnapshot=scene.children.filter(o=>o!==branchViewGroup&&!o.isLight).map(o=>({object:o,visible:o.visible}));branchHomeView.camera=camera.position.clone();branchHomeView.target=orbit.target.clone();branchHomeView.background=scene.background?.clone?.()||scene.background;branchHomeView.fogColor=scene.fog?.color.clone?.()||null;branchHomeView.messageDisplay=msg.style.display}
+ branchViewSnapshot.forEach(v=>v.object.visible=false);branchViewGroup.visible=true;activeBranchId=branch.id;
+ scene.background=new THREE.Color(0xd4e9dc);if(scene.fog)scene.fog.color.set(0xd4e9dc);
+ camera.position.set(18,21,24);orbit.target.set(0,.45,0);camera.lookAt(orbit.target);orbit.update();
+ msg.style.display='none';document.getElementById('branchViewBar').style.display='flex';updateBranchViewBar(branch);
+ const hud=document.getElementById('gameHud');if(hud)hud.style.display='none';document.body.classList.remove('menu-open');const t=document.getElementById('mobileMenuToggle');if(t){t.textContent='☰ 管理';t.setAttribute('aria-expanded','false')}
+ window.dispatchEvent(new Event('resize'));
+}
+function returnToMainStore(){
+ if(!branchViewSnapshot)return;branchViewSnapshot.forEach(v=>v.object.visible=v.visible);branchViewGroup.visible=false;branchViewSnapshot=null;activeBranchId=null;
+ scene.background=branchHomeView.background;if(scene.fog&&branchHomeView.fogColor)scene.fog.color.copy(branchHomeView.fogColor);
+ camera.position.copy(branchHomeView.camera);orbit.target.copy(branchHomeView.target);camera.lookAt(orbit.target);orbit.update();msg.style.display=branchHomeView.messageDisplay;
+ document.getElementById('branchViewBar').style.display='none';const hud=document.getElementById('gameHud');if(hud){hud.style.display='';refreshGameHud()}
+ window.dispatchEvent(new Event('resize'));
+}
+document.getElementById('branchReturn').onclick=returnToMainStore;
+function renderBranches(){const el=document.getElementById('branchList');el.replaceChildren();for(const b of branches){const row=document.createElement('div');row.className='branch-card';const details=document.createElement('div');details.className='branch-card-details';details.innerHTML='<strong>🏪 '+b.name+'</strong><small>收入 $'+b.revenue+' · 成本 $'+b.cost+' · 淨利 $'+(b.revenue-b.cost)+'</small>';const view=document.createElement('button');view.type='button';view.className='branch-view-button';view.textContent='查看店面';view.onclick=()=>openBranchView(b);row.append(details,view);el.appendChild(row)}document.getElementById('branchBuy').disabled=cash<12000||branches.length>=8;if(activeBranchId){const current=branches.find(b=>b.id===activeBranchId);if(current)updateBranchViewBar(current)}}
+document.getElementById('branchBuy').onclick=()=>{if(cash<12000||branches.length>=8)return;cash-=12000;expenses+=12000;recordFinance('expense','開設分店',12000);branches.push({id:'branch-'+Date.now().toString(36),name:'第 '+(branches.length+2)+' 分店',revenue:0,cost:0});saveBranches();save();renderBranches();refreshBusiness()};
 function updateBranches(dt){branchClock+=dt;if(branchClock<35||!branches.length)return;branchClock=0;for(const b of branches){const revenue=180+Math.floor(Math.random()*110),cost=80+Math.floor(Math.random()*50);b.revenue+=revenue;b.cost+=cost;cash+=revenue-cost;earnings+=revenue;expenses+=cost;recordFinance('income',b.name+' 營業收入',revenue);recordFinance('expense',b.name+' 營運成本',cost)}saveBranches();save();renderBranches()}
 renderBranches();
 const startMoneyButton=document.createElement('button');startMoneyButton.textContent='🎮 新開局（$50,000）';startMoneyButton.title='重設經營資金及任務進度，保留目前店面擺設';startMoneyButton.onclick=()=>{if(!confirm('確定重新開始經營？現金恢復 $50,000、銷售與任務重新計算；保留已擺設的設備。'))return;cash=50000;sales=0;day=1;earnings=0;expenses=0;publicity=0;servedToday=0;happy=70;reviewCount=0;reviewTotal=0;categoryStock.food=10;categoryStock.drink=10;categoryStock.snack=10;inventory=30;categorySold.food=0;categorySold.drink=0;categorySold.snack=0;for(const g of [...furniture,...extra])if(['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind))g.userData.shelfStock=0;saveShelfStock();saveProducts();save();refreshFacings();refreshBusiness();hud('新開局成功，獲得 $50,000')};document.querySelector('.game-menu').appendChild(startMoneyButton);function hud(t){
@@ -1270,7 +1315,7 @@ function walkNpc(c,dt){
  const limbs=p.userData.limbs;if(Array.isArray(limbs))limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(c.walk+i*Math.PI)*.32});
  return false;
 }function passedStoreDoor(p){return p.z>=7.25&&Math.abs(p.x)<1.25}
-function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-prev)/1000)*1.5*gameSpeed;prev=now;const animTime=now*.001*1.5;animateWorkEffects(dt,now);updateLighting(dt);
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-prev)/1000)*1.5*gameSpeed;prev=now;if(branchViewSnapshot){updateBranches(dt);orbit.update();renderer.render(scene,camera);return}const animTime=now*.001*1.5;animateWorkEffects(dt,now);updateLighting(dt);
  customers.slice().forEach(c=>{
   if(c.mode==='street'){const p=c.person,dx=c.streetTarget.x-p.position.x,dz=c.streetTarget.z-p.position.z,d=Math.hypot(dx,dz);if(d<.55){scene.remove(p);customers.splice(customers.indexOf(c),1)}else{const step=Math.min(d,dt*.9);p.position.x+=dx/d*step;p.position.z+=dz/d*step;p.rotation.y=Math.atan2(dx,dz);const limbs=p.userData.limbs||[];limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(animTime*9+i*Math.PI)*.42})}return}
   c.phaseTime=(c.phaseTime||0)+dt;
@@ -1431,7 +1476,7 @@ function removeFourUnregisteredKiosks(){
 }
 removeFourUnregisteredKiosks();
 // Legacy furnishing buttons were removed by the unified configuration toolbar; its mode and type selectors now own these actions.
-requestAnimationFrame(loop);let arrivalClock=0;let gameSpeed=2;const speedButton=document.createElement('button');speedButton.type='button';speedButton.textContent='⏩ 速度 2×';speedButton.style.cssText='position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));right:12px;z-index:1200;background:#123d50;color:white;border:1px solid #6dd3c2;border-radius:12px;padding:9px 12px;font:700 13px system-ui;box-shadow:0 3px 12px #0005';speedButton.onclick=()=>{gameSpeed=gameSpeed===1?2:gameSpeed===2?3:1;speedButton.textContent='⏩ 速度 '+gameSpeed+'×';hud('遊戲速度 '+gameSpeed+'×')};document.body.appendChild(speedButton);setInterval(()=>{for(let tick=0;tick<gameSpeed;tick++){gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=300;earnings+=300;hud('今日任務達成：獎勵 $300')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65*restockerCount:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,4-publicity*.24);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.98,.85*popularity+publicity*.035))spawn()}}},1000);hud('營業開始！顧客會自動上門')/* Auto-management: saved inventory and task claims use existing storage keys. */
+requestAnimationFrame(loop);let arrivalClock=0;let gameSpeed=2;const speedButton=document.createElement('button');speedButton.type='button';speedButton.textContent='⏩ 速度 2×';speedButton.style.cssText='position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));right:12px;z-index:1200;background:#123d50;color:white;border:1px solid #6dd3c2;border-radius:12px;padding:9px 12px;font:700 13px system-ui;box-shadow:0 3px 12px #0005';speedButton.onclick=()=>{gameSpeed=gameSpeed===1?2:gameSpeed===2?3:1;speedButton.textContent='⏩ 速度 '+gameSpeed+'×';hud('遊戲速度 '+gameSpeed+'×')};document.body.appendChild(speedButton);setInterval(()=>{for(let tick=0;tick<gameSpeed;tick++){if(branchViewSnapshot)continue;gameTime++;if(gameTime%100===0){day++;if(servedToday>=5){cash+=300;earnings+=300;hud('今日任務達成：獎勵 $300')}servedToday=0;const salary=(cashierHired?85:0)+(staff?65*restockerCount:0);cash-=salary;expenses+=salary;publicity=Math.max(0,publicity-1);save();hud('新的一天！支付員工薪資 $'+salary)}const popularity=Math.max(.35,1-(price-49)*.012);arrivalClock++;const interval=Math.max(2,4-publicity*.24);if(arrivalClock>=interval){arrivalClock=0;if(Math.random()<Math.min(.98,.85*popularity+publicity*.035))spawn()}}},1000);hud('營業開始！顧客會自動上門')/* Auto-management: saved inventory and task claims use existing storage keys. */
 function runAutoIncomeTasks(){renderIncomeTasks()}
 let autoStockTicks=0,autoStockBought=0,autoStockFilled=0,autoStockLast='等待首次檢查';
 function runAutoStock(){
