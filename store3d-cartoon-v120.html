@@ -289,8 +289,14 @@ cube(.055,.55,.12,mats.metal,.38,1.12,.1,doorLeft);cube(.055,.55,.12,mats.metal,
 let doorOpening=0; // Horizontal sliding glass doors, no hinge rotation.
 cube(3.5,.16,1.25,trim,0,3.03,6.72);
 cube(2.2,.025,1.1,material(0x6bb9a9),0,.018,6.9);
-const signCanvas=document.createElement('canvas');signCanvas.width=512;signCanvas.height=128;const ctx=signCanvas.getContext('2d');ctx.fillStyle='#0c947d';ctx.fillRect(0,0,512,128);ctx.fillStyle='#fff';ctx.font='bold 62px sans-serif';ctx.textAlign='center';ctx.fillText('MINI MART',256,82);
-const signTexture=new THREE.CanvasTexture(signCanvas);const signMat=new THREE.MeshBasicMaterial({map:signTexture,side:THREE.DoubleSide});const sign=new THREE.Mesh(new THREE.PlaneGeometry(4.1,1.02),signMat);sign.position.set(0,3.43,6.51);scene.add(sign);
+// V133 storefront branding: canvas sign is a texture, not a physical obstacle.
+const signCanvas=document.createElement('canvas');signCanvas.width=1024;signCanvas.height=256;const ctx=signCanvas.getContext('2d');
+const v133SignGradient=ctx.createLinearGradient(0,0,1024,256);v133SignGradient.addColorStop(0,'#104a54');v133SignGradient.addColorStop(.55,'#176b6b');v133SignGradient.addColorStop(1,'#1e5969');ctx.fillStyle=v133SignGradient;ctx.fillRect(0,0,1024,256);
+ctx.strokeStyle='#f6d28a';ctx.lineWidth=12;ctx.strokeRect(14,14,996,228);
+ctx.textAlign='center';ctx.fillStyle='#ffe5a9';ctx.font='bold 46px sans-serif';ctx.fillText('★  KUNKUN  ★',512,76);
+ctx.fillStyle='#fffaf0';ctx.font='bold 96px sans-serif';ctx.fillText('MINI MART',512,173);
+ctx.fillStyle='#c8e8e5';ctx.font='bold 30px sans-serif';ctx.fillText('OPEN 24 HOURS  •  FRESH & HAPPY',512,219);
+const signTexture=new THREE.CanvasTexture(signCanvas);signTexture.colorSpace=THREE.SRGBColorSpace;const signMat=new THREE.MeshBasicMaterial({map:signTexture,side:THREE.DoubleSide});const sign=new THREE.Mesh(new THREE.PlaneGeometry(4.1,1.02),signMat);sign.position.set(0,3.43,6.51);scene.add(sign);
 // Original cartoon street environment around the store
 const asphalt=material(0x45494d),sidewalk=material(0xd5d3cc),grass=material(0x98a68d),yellow=material(0xf9d36a),stripe=material(0xf6f3e9),brick=material(0xe8ad88),roof=material(0x5d8ca2);
 cube(38,.14,11,asphalt,0,-.27,13.3);cube(38,.18,2.1,sidewalk,0,-.19,7.2);cube(38,.2,2.4,sidewalk,0,-.18,20.0);
