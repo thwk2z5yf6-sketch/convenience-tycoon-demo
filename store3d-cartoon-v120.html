@@ -1075,6 +1075,19 @@ function walkNpc(c,dt){
    c.avoidSide=side;c.stall=Math.max(.3,(c.stall||0)-dt*.5);c.repath=(c.repath||0)+dt;return false;
   }
  }
+ if(blocked&&c.mode!=='queue'&&(c.stall||0)>1.5){
+  // Crowded aisles: search nearby safe waiting positions instead of repeated tiny side steps.
+  const offsets=[[.9,0],[-.9,0],[0,.9],[0,-.9],[1.2,.7],[-1.2,.7],[1.2,-.7],[-1.2,-.7]];
+  const options=offsets.map(([ox,oz])=>({x:p.position.x+ox,z:p.position.z+oz}))
+   .filter(q=>!obstacle(q.x,q.z)&&customers.every(o=>o===c||o.mode==='street'||Math.hypot(o.person.position.x-q.x,o.person.position.z-q.z)>.78))
+   .sort((a,b)=>Math.hypot(a.x-c.goal.x,a.z-c.goal.z)-Math.hypot(b.x-c.goal.x,b.z-c.goal.z));
+  if(options.length){const q=options[0],dd=Math.hypot(q.x-p.position.x,q.z-p.position.z);
+   const fraction=Math.min(1,dt*(c.speed||1.15)/dd),tx=p.position.x+(q.x-p.position.x)*fraction,tz=p.position.z+(q.z-p.position.z)*fraction;
+   if(!obstacle(tx,tz)&&customers.every(o=>o===c||o.mode==='street'||Math.hypot(o.person.position.x-tx,o.person.position.z-tz)>.7)){
+    p.position.x=tx;p.position.z=tz;c.stall=Math.max(0,c.stall-dt*.5);return false;
+   }
+  }
+ }
  if(blocked){c.repath=(c.repath||0)+dt;c.stall=(c.stall||0)+dt;if(c.repath>1.0){c.repath=0;const r=route(p.position,c.goal);c.path=r.path;c.blocked=false}if(c.stall>1.25&&c.stall<2.2){const dx2=next.x-p.position.x,dz2=next.z-p.position.z;for(const side of [customers.indexOf(c)%2?1:-1,customers.indexOf(c)%2?-1:1]){const length=Math.hypot(dx2,dz2)||1,px=p.position.x+(-dz2/length)*side*.32,pz=p.position.z+(dx2/length)*side*.32;if(!obstacle(px,pz)&&!customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-px,o.person.position.z-pz)<.5)){p.position.x=px;p.position.z=pz;break}}}if(c.stall>2.2){const side=(customers.indexOf(c)%2?1:-1);for(const [ox,oz] of [[side*.55,0],[0,side*.55],[-side*.55,0],[0,-side*.55]]){const px=p.position.x+ox,pz=p.position.z+oz;if(!obstacle(px,pz)&&!customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-px,o.person.position.z-pz)<.52)){p.position.x=px;p.position.z=pz;c.stall=0;setDestination(c,c.goal.x,c.goal.z);break}}}// Doorway is a narrow passage: resolve head-on deadlocks by yielding the path.
 if(c.stall>3.2&&(c.mode==='enter'||c.mode==='exit')&&Math.abs(p.position.x)<1.6&&p.position.z>4.3){
  const others=customers.filter(o=>o!==c&&o.mode!=='street'&&Math.abs(o.person.position.x)<1.6&&o.person.position.z>4.2&&o.person.position.z<8.6);
@@ -1086,6 +1099,7 @@ if(c.stall>3&&c.mode==='queue'){c.stall=0;const lane=c.checkoutLane||0,idx=laneC
  const limbs=p.userData.limbs;if(Array.isArray(limbs))limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(c.walk+i*Math.PI)*.32});
  return false
 }
+function passedStoreDoor(p){return p.z>=7.25&&Math.abs(p.x)<1.25}
 function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-prev)/1000)*1.5;prev=now;const animTime=now*.001*1.5;animateWorkEffects(dt,now);updateLighting(dt);
  customers.slice().forEach(c=>{
   if(c.mode==='street'){const p=c.person,dx=c.streetTarget.x-p.position.x,dz=c.streetTarget.z-p.position.z,d=Math.hypot(dx,dz);if(d<.55){scene.remove(p);customers.splice(customers.indexOf(c),1)}else{const step=Math.min(d,dt*.9);p.position.x+=dx/d*step;p.position.z+=dz/d*step;p.rotation.y=Math.atan2(dx,dz);const limbs=p.userData.limbs||[];limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(animTime*9+i*Math.PI)*.42})}return}
@@ -1101,7 +1115,7 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-prev)/
       else{if(!c.cart){const kind=c.browsingKind;if(reachedShelf&&kind&&shelfStock(c.browsingFixture)>0){c.selectedKind=kind;c.selectedFixture=c.browsingFixture;const color={food:0xf0bb6e,drink:0x65c7de,snack:0xd39de8}[kind];const item=new THREE.Mesh(new THREE.BoxGeometry(.2,.22,.16),material(color));item.position.set(.4,1.05,.25);c.person.add(item);c.cart=item}}enterCheckout(c)}
     }
   }
-  else if(c.mode==='exit'&&(arrived||c.phaseTime>13)){c.mode='street';c.streetTarget=new THREE.Vector3(Math.random()<.5?-16:16,0,8.3)}
+  else if(c.mode==='exit'&&(arrived||c.phaseTime>13)){if(passedStoreDoor(c.person.position)){c.mode='street';c.streetTarget=new THREE.Vector3(Math.random()<.5?-16:16,0,8.3)}else{c.phaseTime=0;npcTarget(c,0,8.1)}}
  });
  for(let lane=0;lane<checkoutLanes.length;lane++){if(!checkoutLanes[lane].staff())continue;const first=laneCustomers(lane)[0];if(!first)continue;const spot=laneSpot(lane,0);const atCounter=Math.hypot(first.person.position.x-spot.x,first.person.position.z-spot.z)<.9;first.checkoutTime=(first.checkoutTime||0)+(atCounter?dt:dt*.35);if(first.checkoutTime>1.25){showCheckoutEffect(lane);spawnWorkEffect(first.person.position,'pay');const bought=!!first.cart&&!!first.selectedKind&&shelfStock(first.selectedFixture)>0;pay(first);if(bought){servedToday++;reviewCount++;reviewTotal+=Math.max(1,Math.min(5,Math.round(4+(happy-70)/35)));happy=Math.min(100,happy+1)}else happy=Math.max(0,happy-4);updateQueue();try{localStorage.setItem('store-v40-reputation',JSON.stringify({day,servedToday,happy,reviewCount,reviewTotal}))}catch(e){}}}
  for(let i=checkoutEffects.length-1;i>=0;i--){const fx=checkoutEffects[i];fx.age+=dt;fx.g.position.y+=dt*.5;fx.ring.scale.setScalar(1+fx.age*1.7);fx.ring.material.opacity=Math.max(0,1-fx.age*2);if(fx.age>.55){scene.remove(fx.g);fx.ring.geometry.dispose();fx.ring.material.dispose();checkoutEffects.splice(i,1)}}aiClock+=dt;if(aiClock>1){aiClock=0;refreshBusiness();refreshGameHud()}for(let i=0;i<extraCounterGroups.length;i++){const g=extraCounterGroups[i];if(!g.visible)continue;const model=g.userData.cashierModel;if(!model)continue;const busy=laneCustomers(i+1).length>0;const limbs=model.userData.limbs||[];for(const j of [2,3])if(limbs[j])limbs[j].rotation.x=busy?-.4+Math.sin(animTime*8+i)*.34:Math.sin(animTime*1.4+i)*.08;model.rotation.y=busy?Math.sin(animTime*2+i)*.12:0}const mainArms=cashierPerson.userData.limbs||[];for(const j of [2,3])if(mainArms[j])mainArms[j].rotation.x=laneCustomers(0).length?-.45+Math.sin(animTime*9+j)*.35:0;
