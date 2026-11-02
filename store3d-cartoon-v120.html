@@ -1063,6 +1063,18 @@ function walkNpc(c,dt){
  const dx=next.x-p.position.x,dz=next.z-p.position.z,d=Math.hypot(dx,dz);if(d<.001)return false;
  const step=Math.min(d,dt*(c.speed||1.15)),nx=p.position.x+dx/d*step,nz=p.position.z+dz/d*step;
  const blocked=obstacle(nx,nz)||customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-nx,o.person.position.z-nz)<(c.mode==='queue'?.52:.7))||(staff&&worker&&Math.hypot(worker.person.position.x-nx,worker.person.position.z-nz)<.58);
+ if(blocked&&c.mode!=='queue'&&(c.stall||0)>.35){
+  // V133: try a short collision-free lateral step before waiting for a full route rebuild.
+  const sideOrder=customers.indexOf(c)%2?[1,-1]:[-1,1];
+  for(const side of sideOrder){
+   const sideStep=Math.min(.36,Math.max(.14,dt*(c.speed||1.15)*1.5));
+   const tx=p.position.x-dz/d*side*sideStep,tz=p.position.z+dx/d*side*sideStep;
+   if(obstacle(tx,tz)||customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-tx,o.person.position.z-tz)<.72))continue;
+   if(staff&&worker&&Math.hypot(worker.person.position.x-tx,worker.person.position.z-tz)<.58)continue;
+   p.position.x=tx;p.position.z=tz;p.rotation.y=Math.atan2(-dz*side,dx*side);
+   c.stall=0;c.repath=0;return false;
+  }
+ }
  if(blocked){c.repath=(c.repath||0)+dt;c.stall=(c.stall||0)+dt;if(c.repath>1.0){c.repath=0;const r=route(p.position,c.goal);c.path=r.path;c.blocked=false}if(c.stall>1.25&&c.stall<2.2){const dx2=next.x-p.position.x,dz2=next.z-p.position.z;for(const side of [customers.indexOf(c)%2?1:-1,customers.indexOf(c)%2?-1:1]){const length=Math.hypot(dx2,dz2)||1,px=p.position.x+(-dz2/length)*side*.32,pz=p.position.z+(dx2/length)*side*.32;if(!obstacle(px,pz)&&!customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-px,o.person.position.z-pz)<.5)){p.position.x=px;p.position.z=pz;break}}}if(c.stall>2.2){const side=(customers.indexOf(c)%2?1:-1);for(const [ox,oz] of [[side*.55,0],[0,side*.55],[-side*.55,0],[0,-side*.55]]){const px=p.position.x+ox,pz=p.position.z+oz;if(!obstacle(px,pz)&&!customers.some(o=>o!==c&&o.mode!=='street'&&Math.hypot(o.person.position.x-px,o.person.position.z-pz)<.52)){p.position.x=px;p.position.z=pz;c.stall=0;setDestination(c,c.goal.x,c.goal.z);break}}}// Doorway is a narrow passage: resolve head-on deadlocks by yielding the path.
 if(c.stall>3.2&&(c.mode==='enter'||c.mode==='exit')&&Math.abs(p.position.x)<1.6&&p.position.z>4.3){
  const others=customers.filter(o=>o!==c&&o.mode!=='street'&&Math.abs(o.person.position.x)<1.6&&o.person.position.z>4.2&&o.person.position.z<8.6);
