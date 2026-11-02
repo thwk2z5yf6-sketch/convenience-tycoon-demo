@@ -1217,6 +1217,11 @@ v132ClaimBtn.addEventListener('click',()=>{
   for(const x of selected){const n=Math.min(x.n,Math.max(0,Math.floor(shelfStock(x.g))));x.g.userData.shelfStock-=n;const sku=skuFor(x.g),kind=fixtureKind(x.g);if(sku)skuSold[sku]=(skuSold[sku]||0)+n;else if(categorySold[kind]!==undefined)categorySold[kind]+=n}
   cash+=paid;earnings+=paid;sales+=actual;
   saveShelfStock();saveProducts();saveSkus();save();
+  // The legacy save helpers suppress storage exceptions. Verify durable values before committing.
+  const persistedGame=JSON.parse(localStorage.getItem('store3d-v6')||'null');
+  const persistedShelves=JSON.parse(localStorage.getItem('store-v59-shelf-stock')||'null');
+  if(!persistedGame||persistedGame.cash!==cash||persistedGame.sales!==sales||!persistedShelves)throw Error('存檔驗證失敗');
+  for(const x of selected)if(persistedShelves[fixtureId(x.g)]!==shelfStock(x.g))throw Error('貨架庫存未成功保存');
   localStorage.setItem(txKey,'done');
   v132State.pending=null;v132State.lastActive=Date.now();v132Persist();
   try{recordFinance('income','V132 離線獎金 '+actual+' 件',paid)}catch(e){}
