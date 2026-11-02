@@ -494,6 +494,20 @@ function bicycle(x,z){const g=new THREE.Group();g.position.set(x,0,z);streetProp
 bicycle(16.3,9.3);
 function flowerPatch(x,z){streetBox(2,.08,.8,grass,x,-.06,z);for(let i=0;i<7;i++){const flower=new THREE.Mesh(new THREE.IcosahedronGeometry(.11,0),i%2?streetPalette.pink:streetPalette.cream);flower.position.set(x-.85+i*.28,.18,z+Math.sin(i*3)*.22);streetProps.add(flower)}}
 flowerPatch(-11.5,6.7);flowerPatch(15.1,6.7);
+// V133 right-side streetscape garden: visual-only meshes, no pathfinding obstacles.
+const v133Garden=new THREE.Group();v133Garden.name='v133-streetscape-garden';streetProps.add(v133Garden);
+const v133Planter=material(0xb67c5c,0,.8),v133Soil=material(0x645044,0,.9),v133Leaf=material(0x67ae7c,0,.78);
+for(const px of [13.9,15.1,16.3]){
+ const planter=new THREE.Group();planter.position.set(px,0,7.7);v133Garden.add(planter);
+ cube(.72,.33,.62,v133Planter,0,.17,0,planter);
+ cube(.62,.035,.52,v133Soil,0,.35,0,planter);
+ for(const dx of [-.18,0,.18]){
+  const leaf=new THREE.Mesh(new THREE.IcosahedronGeometry(.16,1),v133Leaf);
+  leaf.position.set(dx,.56+(dx===0?.08:0),0);planter.add(leaf);
+ }
+}
+// Garden is positioned beyond the existing store floor and is not selectable furniture.
+
 // V110: remove all decorative structures from the circled left grass lot (x < -10, z < 7).
 for(const obj of [...streetProps.children]){const p=obj.position;if(p.x < -10 && p.z < 6.5 && p.z > -17 && obj!==arcade && obj!==scooterBays)streetProps.remove(obj)}
 
