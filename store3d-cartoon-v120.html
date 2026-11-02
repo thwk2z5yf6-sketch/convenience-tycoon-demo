@@ -1074,7 +1074,7 @@ if(c.stall>5&&c.mode==='queue'){c.stall=0;updateQueue()}if(c.stall>5&&c.mode==='
  const limbs=p.userData.limbs;if(Array.isArray(limbs))limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(c.walk+i*Math.PI)*.32});
  return false
 }
-function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-prev)/1000);prev=now;const animTime=now*.001;animateWorkEffects(dt,now);updateLighting(dt);
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-prev)/1000)*1.5;prev=now;const animTime=now*.001*1.5;animateWorkEffects(dt,now);updateLighting(dt);
  customers.slice().forEach(c=>{
   if(c.mode==='street'){const p=c.person,dx=c.streetTarget.x-p.position.x,dz=c.streetTarget.z-p.position.z,d=Math.hypot(dx,dz);if(d<.55){scene.remove(p);customers.splice(customers.indexOf(c),1)}else{const step=Math.min(d,dt*.9);p.position.x+=dx/d*step;p.position.z+=dz/d*step;p.rotation.y=Math.atan2(dx,dz);const limbs=p.userData.limbs||[];limbs.forEach((l,i)=>{if(l)l.rotation.x=Math.sin(animTime*9+i*Math.PI)*.42})}return}
   c.phaseTime=(c.phaseTime||0)+dt;
