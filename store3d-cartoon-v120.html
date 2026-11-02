@@ -1167,6 +1167,11 @@ function v132ShowPending(){
  v132Overlay.querySelector('#v132RewardCash').textContent='+$'+p.revenue;
  v132Overlay.querySelector('#v132RewardReason').textContent=p.reason||'領取後會扣除貨架商品並存入現金';
  v132ClaimBtn.textContent=p.revenue>0?'🎁 領取離線獎金':'確認離線結算';
+ const tx='store-v132-claimed-'+p.id;
+ if(localStorage.getItem(tx)==='processing'){
+  v132ClaimBtn.textContent='復原中斷的領取並重新整理';
+  v132Overlay.querySelector('#v132RewardReason').textContent='偵測到上次領取中斷，請先復原領取前的存檔，再重新領取';
+ }
  v132Overlay.style.display='flex';
 }
 function v132Prepare(){
@@ -1187,7 +1192,16 @@ v132ClaimBtn.addEventListener('click',()=>{
  // Idempotent recovery: save a transaction marker inside the primary game save.
  const txKey='store-v132-claimed-'+p.id;
  if(localStorage.getItem(txKey)==='done'){v132State.pending=null;v132Persist();v132Overlay.style.display='none';return}
- if(localStorage.getItem(txKey)==='processing'){v132ClaimBtn.disabled=true;v132Overlay.querySelector('#v132RewardReason').textContent='上次領取尚未確認，為避免重複入帳已暫停領取。請先備份存檔。';return}
+ if(localStorage.getItem(txKey)==='processing'){
+  try{
+   const backup=JSON.parse(localStorage.getItem('store-v132-preclaim-'+p.id)||'null');
+   if(!backup||!Object.prototype.hasOwnProperty.call(backup,'store3d-v6'))throw Error('缺少領取前備份');
+   for(const [key,value] of Object.entries(backup)){if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value)}
+   localStorage.removeItem(txKey);
+   location.reload();
+  }catch(e){v132Overlay.querySelector('#v132RewardReason').textContent='復原失敗：'+e.message+'。請勿清除瀏覽器資料';}
+  return
+ }
  v132ClaimBtn.disabled=true;
  try{
   // Prepare a full backup of affected keys before changing stock/cash.
