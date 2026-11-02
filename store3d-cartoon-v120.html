@@ -1220,7 +1220,12 @@ v132ClaimBtn.addEventListener('click',()=>{
   // The legacy save helpers suppress storage exceptions. Verify durable values before committing.
   const persistedGame=JSON.parse(localStorage.getItem('store3d-v6')||'null');
   const persistedShelves=JSON.parse(localStorage.getItem('store-v59-shelf-stock')||'null');
-  if(!persistedGame||persistedGame.cash!==cash||persistedGame.sales!==sales||!persistedShelves)throw Error('存檔驗證失敗');
+  if(!persistedGame||persistedGame.cash!==cash||persistedGame.sales!==sales||persistedGame.earnings!==earnings||!persistedShelves)throw Error('現金或銷售存檔驗證失敗');
+  const persistedProducts=JSON.parse(localStorage.getItem('store-v37-products')||'null');
+  const persistedSkus=JSON.parse(localStorage.getItem('store-v72-skus')||'null');
+  if(!persistedProducts||!persistedSkus)throw Error('商品存檔驗證失敗');
+  for(const key of Object.keys(categorySold))if(persistedProducts.sold?.[key]!==categorySold[key])throw Error('商品銷售數量存檔失敗');
+  for(const key of Object.keys(skuSold))if(persistedSkus.sold?.[key]!==skuSold[key])throw Error('SKU 銷售數量存檔失敗');
   for(const x of selected)if(persistedShelves[fixtureId(x.g)]!==shelfStock(x.g))throw Error('貨架庫存未成功保存');
   localStorage.setItem(txKey,'done');
   v132State.pending=null;v132State.lastActive=Date.now();v132Persist();
