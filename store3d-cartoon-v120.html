@@ -922,13 +922,22 @@ function resize(){let w=Math.max(1,stage.clientWidth),h=Math.max(1,stage.clientH
 if(typeof ResizeObserver!=='undefined'){const v133StageObserver=new ResizeObserver(()=>resize());v133StageObserver.observe(stage)}
 if(window.visualViewport)window.visualViewport.addEventListener('resize',resize,{passive:true});
 // WebGL context loss is recoverable by refreshing; show an explicit notice rather than a frozen blank screen.
+// V133: visible recovery control for mobile WebGL failures; never clears localStorage.
+const v133Recovery=document.createElement('div');
+v133Recovery.id='v133-recovery';
+v133Recovery.style.cssText='display:none;position:absolute;z-index:80;inset:0;background:rgba(10,24,35,.89);color:#fff;align-items:center;justify-content:center;flex-direction:column;gap:12px;text-align:center;padding:24px';
+v133Recovery.innerHTML='<strong style="font-size:20px">3D 畫面暫時中斷</strong><span>可以重新載入遊戲，不會主動清除本機存檔。</span><button type="button" style="background:#f0d39c;color:#17333b;border:0;border-radius:14px;padding:12px 22px;font-weight:800;cursor:pointer">重新載入 3D 畫面</button>';
+v133Recovery.querySelector('button').addEventListener('click',()=>window.location.reload());
+stage.appendChild(v133Recovery);
 renderer.domElement.addEventListener('webglcontextlost',event=>{
  event.preventDefault();
- msg.textContent='⚠️ 3D 畫面暫時中斷，請重新整理頁面恢復。遊戲存檔不會因此清除。';
- msg.style.display='block';
+ v133Recovery.style.display='flex';
+ msg.textContent='⚠️ 3D 圖形環境中斷，請按重新載入。';
 });
 renderer.domElement.addEventListener('webglcontextrestored',()=>{
- msg.textContent='3D 圖形環境已恢復；若畫面仍異常，請重新整理頁面。';
+ v133Recovery.style.display='none';
+ resize();
+ msg.textContent='3D 圖形環境已恢復。';
 });
 resize();let prev=performance.now();// NPC navigation: one path planner, distinct shopping stations and collision-safe movement.
 // Derive browsing positions from the current fixture positions, not fixed map coordinates.
