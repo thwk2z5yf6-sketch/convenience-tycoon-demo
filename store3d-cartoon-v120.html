@@ -1149,86 +1149,70 @@ function runAutoStock(){
  }
  const el=document.getElementById('autoStockStatus');if(el)el.textContent='自動管理：'+autoStockLast+'｜累計進貨 '+autoStockBought+' 批、補貨 '+autoStockFilled+' 座｜執行 '+autoStockTicks+' 次';
 }
-/* V132: bounded offline settlement, using real shelf inventory; no duplicate claims. */
-const v132ClockKey='store-v132-last-active';
-const v132ReportKey='store-v132-last-report';
-const v132MaxOfflineMs=24*60*60*1000;
-let v132LastActive=Date.now();
-try{const n=Number(localStorage.getItem(v132ClockKey));if(Number.isFinite(n)&&n>0&&n<=Date.now())v132LastActive=n}catch(e){}
-function v132Stamp(){try{localStorage.setItem(v132ClockKey,String(Date.now()))}catch(e){}}
-function v132SettleOffline(){
- const now=Date.now(),elapsed=Math.max(0,Math.min(v132MaxOfflineMs,now-v132LastActive));
- v132Stamp(); // claim first to prevent double settlement after refresh
- if(elapsed<60000)return;
- let units=0,revenue=0;
- if(cashierHired){
-  const fixtures=[...new Set([...furniture,...extra])].filter(g=>g&&g.visible!==false&&g.userData&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind));
-  let remaining=Math.floor(elapsed/300000); // at most one purchase per five real minutes
-  for(const g of fixtures){
-   if(remaining<=0)break;
-   const available=Math.max(0,Math.floor(shelfStock(g)));
-   const sold=Math.min(available,remaining);
-   if(!sold)continue;
-   g.userData.shelfStock=available-sold;
-   remaining-=sold;units+=sold;revenue+=sold*Math.max(1,Number(price)||49);
-   const sku=skuFor(g),kind=fixtureKind(g);
-   if(sku)skuSold[sku]=(skuSold[sku]||0)+sold;
-   else if(categorySold[kind]!==undefined)categorySold[kind]+=sold;
-  }
- }
- if(units){
-  cash+=revenue;earnings+=revenue;sales+=units;
-  saveShelfStock();saveProducts();saveSkus();save();
-  try{recordFinance('income','V132 離線銷售 '+units+' 件',revenue)}catch(e){}
-  try{refreshFacings();refreshBusiness()}catch(e){}
- }
- const hours=(elapsed/3600000).toFixed(1);
- const report='離線 '+hours+' 小時（最多24小時），售出 '+units+' 件，收入 autoStockStatus.id='autoStockStatus';
-autoStockStatus.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #4b9e9e;border-radius:10px;background:#183b48;color:#d4f7ef;font-size:12px';
-autoStockStatus.textContent='自動管理：等待首次檢查';
-document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(autoStockStatus);
-const stockCheckButton=document.createElement('button');
-stockCheckButton.type='button';stockCheckButton.textContent='🔄 立即檢查並自動補貨';
-stockCheckButton.onclick=()=>{try{runAutoStock()}catch(e){autoStockStatus.textContent='⚠️ 補貨檢查失敗：'+e.message}};
-autoStockStatus.parentElement?.appendChild(stockCheckButton);
-setInterval(()=>{try{runAutoIncomeTasks()}catch(e){console.error('Auto task',e)}},2500);
-setInterval(()=>{try{runAutoStock()}catch(e){console.error('Auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 自動補貨錯誤：'+e.message}},5500);
-setTimeout(()=>{try{runAutoStock()}catch(e){console.error('Initial auto stock',e);const el=document.getElementById('autoStockStatus');if(el)el.textContent='⚠️ 初次補貨錯誤：'+e.message}},1200);
-
-}catch(e){error(e)}
-</script>
-<script>
-/* VNext independent save backup: no existing storage keys are changed. */
-(function(){
- const btn=document.createElement('button');
- btn.type='button';btn.textContent='💾 備份遊戲存檔';
- btn.style.cssText='position:fixed;right:12px;bottom:calc(158px + env(safe-area-inset-bottom));z-index:1300;background:#164a54;color:#fff;border:1px solid #74d7bd;border-radius:12px;padding:9px 12px;font:700 12px system-ui;box-shadow:0 3px 12px #0005';
- btn.addEventListener('click',function(){
-  try{
-   const data={format:'convenience-tycoon-localstorage-backup',version:1,createdAt:new Date().toISOString(),origin:location.origin,items:{}};
-   for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&/^(store|store3d)/i.test(key))data.items[key]=localStorage.getItem(key)}
-   if(!Object.keys(data.items).length){alert('目前沒有找到本機遊戲存檔');return}
-   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-   const url=URL.createObjectURL(blob),a=document.createElement('a');
-   a.href=url;a.download='convenience-tycoon-backup-'+new Date().toISOString().slice(0,10)+'.json';
-   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }catch(e){alert('備份失敗：'+e.message)}
- });
- document.body.appendChild(btn);
-})();
-</script></body></html>+revenue+(cashierHired?'':'；未雇用收銀員');
- try{localStorage.setItem(v132ReportKey,report)}catch(e){}
- const el=document.getElementById('v132OfflineReport');if(el)el.textContent=report;
+/* V132 offline rewards: pending transaction, never auto-credit. */
+const v132Key='store-v132-offline-state',v132Limit=86400000;
+let v132State={lastActive:Date.now(),pending:null};
+try{const saved=JSON.parse(localStorage.getItem(v132Key)||'null');if(saved&&Number.isFinite(saved.lastActive))v132State=saved}catch(e){}
+function v132Persist(){try{localStorage.setItem(v132Key,JSON.stringify(v132State));return true}catch(e){console.error('V132 storage',e);return false}}
+const v132Overlay=document.createElement('div');
+v132Overlay.id='v132RewardOverlay';
+v132Overlay.style.cssText='position:fixed;inset:0;z-index:99999;background:#06151dd9;display:none;align-items:center;justify-content:center;padding:18px;box-sizing:border-box';
+v132Overlay.innerHTML='<section role="dialog" aria-modal="true" aria-labelledby="v132RewardTitle" style="width:min(420px,100%);max-height:90vh;overflow:auto;background:linear-gradient(145deg,#204b60,#102b40);color:white;border:1px solid #80bdb4;border-radius:22px;padding:25px;text-align:center;box-shadow:0 20px 65px #0009"><h2 id="v132RewardTitle">🎁 歡迎回來！</h2><p id="v132RewardTime"></p><p id="v132RewardUnits"></p><h2 id="v132RewardCash" style="color:#8ef0c0"></h2><p id="v132RewardReason" style="font-size:13px;color:#c4e0e4"></p><button id="v132ClaimReward" type="button" style="width:100%;min-height:54px">領取離線獎金</button></section>';
+document.body.appendChild(v132Overlay);
+const v132ClaimBtn=v132Overlay.querySelector('#v132ClaimReward');
+function v132ShowPending(){
+ const p=v132State.pending;if(!p)return;
+ v132Overlay.querySelector('#v132RewardTime').textContent='離線 '+(p.elapsed/3600000).toFixed(2)+' 小時（上限 24 小時）';
+ v132Overlay.querySelector('#v132RewardUnits').textContent='預估售出 '+p.units+' 件';
+ v132Overlay.querySelector('#v132RewardCash').textContent='+$'+p.revenue;
+ v132Overlay.querySelector('#v132RewardReason').textContent=p.reason||'領取後會扣除貨架商品並存入現金';
+ v132ClaimBtn.textContent=p.revenue>0?'🎁 領取離線獎金':'確認離線結算';
+ v132Overlay.style.display='flex';
 }
-const v132OfflineReport=document.createElement('div');
-v132OfflineReport.id='v132OfflineReport';
-v132OfflineReport.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #69b7a2;border-radius:10px;background:#173c47;color:#d8fff2;font-size:13px';
-v132OfflineReport.textContent='V132 離線收益：等待結算';
-document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(v132OfflineReport);
-setTimeout(()=>{try{v132SettleOffline()}catch(e){console.error('V132 offline settlement',e)}},1800);
-setInterval(v132Stamp,30000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')v132Stamp()});
-window.addEventListener('pagehide',v132Stamp);
+function v132Prepare(){
+ if(v132State.pending){v132ShowPending();return}
+ const now=Date.now(),elapsed=Math.max(0,Math.min(v132Limit,now-(Number(v132State.lastActive)||now)));
+ if(elapsed<60000){v132State.lastActive=now;v132Persist();return}
+ let remaining=cashierHired?Math.floor(elapsed/300000):0,units=0,revenue=0,items=[];
+ const fixtures=[...new Set([...furniture,...extra])].filter(g=>g&&g.visible!==false&&g.userData&&['rack','fridge','freezer','snack','bakery','drinks'].includes(g.userData.kind));
+ for(const g of fixtures){if(remaining<=0)break;const n=Math.min(remaining,Math.max(0,Math.floor(shelfStock(g))));if(n){items.push({id:fixtureId(g),n});units+=n;remaining-=n}}
+ revenue=units*Math.max(1,Number(price)||49);
+ const reason=!cashierHired?'尚未雇用收銀員':!units?'貨架缺貨，或離線時間不足 5 分鐘':'領取後將扣除貨架庫存並入帳';
+ v132State.pending={id:String(now),elapsed,units,revenue,items,reason};
+ v132State.lastActive=now;
+ if(v132Persist())v132ShowPending();
+}
+v132ClaimBtn.addEventListener('click',()=>{
+ const p=v132State.pending;if(!p)return;
+ // Idempotent recovery: save a transaction marker inside the primary game save.
+ const txKey='store-v132-claimed-'+p.id;
+ if(localStorage.getItem(txKey)==='done'){v132State.pending=null;v132Persist();v132Overlay.style.display='none';return}
+ v132ClaimBtn.disabled=true;
+ try{
+  // Prepare a full backup of affected keys before changing stock/cash.
+  const keys=['store3d-v6','store-v37-products','store-v72-skus'];
+  const snapshot={};for(const k of keys)snapshot[k]=localStorage.getItem(k);
+  const all=[...new Set([...furniture,...extra])];
+  const selected=p.items.map(it=>({g:all.find(g=>fixtureId(g)===it.id),n:it.n})).filter(x=>x.g);
+  const actual=selected.reduce((sum,x)=>sum+Math.min(x.n,Math.max(0,Math.floor(shelfStock(x.g)))),0);
+  const paid=actual*Math.max(1,Number(price)||49);
+  // Mark before credit; failed writes do not silently double-credit.
+  localStorage.setItem(txKey,'processing');
+  for(const x of selected){const n=Math.min(x.n,Math.max(0,Math.floor(shelfStock(x.g))));x.g.userData.shelfStock-=n;const sku=skuFor(x.g),kind=fixtureKind(x.g);if(sku)skuSold[sku]=(skuSold[sku]||0)+n;else if(categorySold[kind]!==undefined)categorySold[kind]+=n}
+  cash+=paid;earnings+=paid;sales+=actual;
+  saveShelfStock();saveProducts();saveSkus();save();
+  localStorage.setItem(txKey,'done');
+  v132State.pending=null;v132State.lastActive=Date.now();v132Persist();
+  try{recordFinance('income','V132 離線獎金 '+actual+' 件',paid)}catch(e){}
+  try{refreshFacings();refreshBusiness()}catch(e){}
+  v132Overlay.style.display='none';hud('🎁 已領取離線收益 $'+paid);
+ }catch(e){console.error('V132 claim failed',e);v132Overlay.querySelector('#v132RewardReason').textContent='領取失敗，請勿清除瀏覽器資料，重新開啟遊戲再試';}
+ finally{v132ClaimBtn.disabled=false}
+});
+setTimeout(()=>{try{v132Prepare()}catch(e){console.error('V132 prepare',e)}},1800);
+setInterval(()=>{if(document.visibilityState==='visible'&&!v132State.pending){v132State.lastActive=Date.now();v132Persist()}},30000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&!v132State.pending){v132State.lastActive=Date.now();v132Persist()}});
+window.addEventListener('pagehide',()=>{if(!v132State.pending){v132State.lastActive=Date.now();v132Persist()}});
 const autoStockStatus=document.createElement('div');autoStockStatus.id='autoStockStatus';
 autoStockStatus.style.cssText='grid-column:1/-1;padding:9px;border:1px solid #4b9e9e;border-radius:10px;background:#183b48;color:#d4f7ef;font-size:12px';
 autoStockStatus.textContent='自動管理：等待首次檢查';
