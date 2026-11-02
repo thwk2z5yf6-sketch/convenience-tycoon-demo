@@ -264,6 +264,15 @@ cube(3.48,.13,.055,v133CounterTrim,0,.98,.695,primaryCounterVisual);
 cube(3.18,.48,.055,v133CounterPanel,0,.56,.705,primaryCounterVisual);
 for(const x of [-1.35,1.35])cube(.065,.46,.075,v133CounterTrim,x,.56,.745,primaryCounterVisual);
 cube(.52,.055,.38,v133CounterTrim,.95,1.57,-.2,primaryCounterVisual);
+// V133 café corner: a compact non-interactive coffee station fixed to the existing cashier fixture.
+// No new colliders, product stock, or localStorage keys; the station moves with the counter.
+const v133CoffeeBody=material(0x3d5262,.32,.35),v133CoffeeSteel=material(0xd4dde1,.65,.24),v133CoffeeCup=material(0xfff4dc,0,.5),v133CoffeeBean=material(0x7a4d37,0,.7);
+cube(.62,.64,.39,v133CoffeeBody,-1.34,1.56,-.19,primaryCounterVisual);
+cube(.68,.09,.44,v133CoffeeSteel,-1.34,1.93,-.19,primaryCounterVisual);
+cube(.35,.13,.035,v133CounterPanel,-1.34,1.74,.025,primaryCounterVisual);
+for(const x of [-1.48,-1.2]){cylinder(.075,.065,.18,v133CoffeeCup,x,1.36,.11,primaryCounterVisual);cylinder(.055,.055,.012,v133CoffeeBean,x,1.46,.11,primaryCounterVisual)}
+cube(.34,.055,.21,v133CoffeeSteel,-1.34,1.29,.1,primaryCounterVisual);
+
 /* Removed fixed small merchandise table beside the entrance. *//* V46: removed fixed-position display counters, merchandise and side cabinet; cashier remains. */for(let i=0;i<4;i++){const rack=shelves[i];for(let j=0;j<6;j++){cube(.15,.22,.18,material([0x65a6c9,0xe2b46a,0xbf7474,0x8cb88a][i]),-.65+j*.23,1.82,-.25,rack)}}// Front facade with an unmistakable single central doorway
 const facade=material(0xfff8e9),trim=material(0x11b5a3),darkGlass=material(0x8bc9df,.12,.18,.48);
 const frontFacade=new THREE.Group();scene.add(frontFacade);
