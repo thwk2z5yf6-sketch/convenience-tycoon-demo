@@ -173,7 +173,24 @@ body.plan-active #togglePlanTools{display:block!important;margin:5px 0 0!importa
 <details><summary>📈 擴建任務</summary><div class="menu-buttons"><button id="upgrade">🏗️ 完成任務後擴建</button></div></details>
 <details><summary>📦 商品補貨</summary><div class="menu-buttons"><button id="food">🥪 食品 $120</button><button id="drink">🥤 飲料 $120</button><button id="snack">🍪 零食 $120</button></div></details>
 <details><summary>⚙️ 畫面設定</summary><div class="menu-buttons"><button id="reset">🎥 重設視角</button><button id="quality">⚙️ 降低畫質</button></div></details>
-</div><p style="padding:0 14px"><small>這是原創卡通 3D 街景版本，不會覆蓋你原本的遊戲或存檔。用手指拖曳可旋轉視角，雙指縮放。設備為原創 3D 場景；人物模型採用公開範例資產，後續再換成正式授權的商店與角色模型。</small></p><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script><script type="module">import * as THREE from 'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';const stage=document.getElementById('stage'),msg=document.getElementById('message');
+</div><p style="padding:0 14px"><small>這是原創卡通 3D 街景版本，不會覆蓋你原本的遊戲或存檔。用手指拖曳可旋轉視角，雙指縮放。設備為原創 3D 場景；人物模型採用公開範例資產，後續再換成正式授權的商店與角色模型。</small></p><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script><script type="module">import * as THREE from 'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';import{GLTFLoader}from'three/addons/loaders/GLTFLoader.js';/* V132: recover an interrupted reward BEFORE game state is loaded. */
+try{
+ const v132Boot=JSON.parse(localStorage.getItem('store-v132-offline-state')||'null');
+ const v132Pending=v132Boot&&v132Boot.pending;
+ if(v132Pending&&v132Pending.id){
+  const marker='store-v132-claimed-'+v132Pending.id;
+  if(localStorage.getItem(marker)==='processing'){
+   const backup=JSON.parse(localStorage.getItem('store-v132-preclaim-'+v132Pending.id)||'null');
+   if(backup&&Object.prototype.hasOwnProperty.call(backup,'store3d-v6')){
+    for(const [key,value] of Object.entries(backup)){
+     if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value);
+    }
+    localStorage.removeItem(marker);
+   }
+  }
+ }
+}catch(v132BootError){console.error('V132 startup recovery',v132BootError)}
+const stage=document.getElementById('stage'),msg=document.getElementById('message');
 const mobileUI=document.createElement('div');mobileUI.id='mobileGameBar';mobileUI.innerHTML='<button id="mobileMenuToggle">☰ 管理</button><button id="mobileViewToggle">⛶ 遊戲</button><button id="mobilePlanToggle">🗺️ 配置</button>';document.body.appendChild(mobileUI);
 const rotatePrompt=document.createElement('div');rotatePrompt.id='rotatePrompt';rotatePrompt.innerHTML='<div class="rotate-card"><strong>📱 請將手機橫向</strong><p>橫向可享有完整 3D 商店畫面與線上遊戲式操作介面。</p><button id="rotateContinue">繼續使用</button></div>';document.body.appendChild(rotatePrompt);
 document.getElementById('rotateContinue').onclick=()=>rotatePrompt.style.display='none';
