@@ -265,6 +265,15 @@ footer{color:#668073}
  body.mobile-immersive #mobileGameBar{opacity:.92}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+/* Product SKU cards */
+.sku-item-card{display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;gap:4px!important;min-height:78px!important;padding:10px 12px!important;text-align:left!important;border-left:4px solid var(--sku-accent,#5d9d76)!important;background:linear-gradient(145deg,#fffef9,#edf5eb)!important}
+.sku-item-card .sku-card-label{font-size:14px;font-weight:850;color:#254b39}
+.sku-item-card small{font-size:11px;color:#6a8176}
+.sku-item-card.sku-food{--sku-accent:#e88751}
+.sku-item-card.sku-drink{--sku-accent:#4e9dbd}
+.sku-item-card.sku-snack{--sku-accent:#c99a38}
+@media(max-width:950px){.sku-item-card{min-height:64px!important;padding:8px!important}.sku-item-card .sku-card-label{font-size:12px}}
 /* ensure the refreshed controls win against legacy night-mode rules */
 .game-menu details:not([open]){border-color:#d2e1d4!important;background:linear-gradient(160deg,#fffef8,#f4f7ee)!important}
 .game-menu summary{background:linear-gradient(100deg,#e8f4e8,#f8f5e9)!important;border-bottom:1px solid #dbe7d9!important;color:#254b39!important}
@@ -761,7 +770,7 @@ const skuCatalog=Object.fromEntries(skuItems.map(([id,label,kind,cost,units,colo
 let skuWarehouse={},skuSold={},skuAssignments={};try{const d=JSON.parse(localStorage.getItem('store-v72-skus')||'{}');skuWarehouse=d.warehouse||{};skuSold=d.sold||{};skuAssignments=d.assignments||{}}catch(e){}
 function saveSkus(){try{localStorage.setItem('store-v72-skus',JSON.stringify({warehouse:skuWarehouse,sold:skuSold,assignments:skuAssignments}))}catch(e){}}
 function skuFor(g){return g?.userData?.skuId&&skuCatalog[g.userData.skuId]?g.userData.skuId:null}
-for(const [id,label,kind,cost,units] of skuItems){const b=document.createElement('button');b.textContent=label+' $'+cost;b.title='獨立進貨 '+units+' 件';b.onclick=()=>{if(cash<cost)return hud('現金不足');cash-=cost;expenses+=cost;skuWarehouse[id]=(skuWarehouse[id]||0)+units;saveSkus();save();hud(label+' 倉庫進貨 +'+units)};document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(b)}
+for(const [id,label,kind,cost,units] of skuItems){const b=document.createElement('button');b.className='sku-item-card sku-'+kind;b.innerHTML='<span class="sku-card-label">'+label+'</span><small>補貨 '+units+' 件 · $'+cost+'</small>';b.title='獨立進貨 '+units+' 件';b.onclick=()=>{if(cash<cost)return hud('現金不足');cash-=cost;expenses+=cost;skuWarehouse[id]=(skuWarehouse[id]||0)+units;saveSkus();save();hud(label+' 倉庫進貨 +'+units)};document.querySelector('.game-menu details:nth-child(5) .menu-buttons')?.appendChild(b)}
 const upgradeWorker=document.createElement('button');upgradeWorker.textContent='⭐ 升級補貨員 $'+600*workerLevel;upgradeWorker.onclick=()=>{if(!staff)return hud('請先雇用補貨員');if(workerLevel>=5)return hud('補貨員已達滿級');const cost=600*workerLevel;if(cash<cost)return hud('員工升級需要 $'+cost);cash-=cost;expenses+=cost;workerLevel++;upgradeWorker.textContent='⭐ 升級補貨員 $'+600*workerLevel;saveProducts();save();hud('補貨員升級 Lv.'+workerLevel+'：移動與補貨效率提高')};document.getElementById('hire').parentElement.appendChild(upgradeWorker);
 
 const expansion=new THREE.Group();scene.add(expansion);let sideLevel=0,leftExtension=0,rightExtension=0;
