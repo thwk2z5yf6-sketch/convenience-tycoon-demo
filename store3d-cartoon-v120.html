@@ -776,18 +776,18 @@ const startMoneyButton=document.createElement('button');startMoneyButton.textCon
 function makeFallbackPerson(){const g=new THREE.Group();const palette=[0x75b9d8,0xf2a78b,0x8bc5a4,0xb4a4d9,0xf3c67c,0xf0d68b,0x7d9cb7,0xd1a4c7,0x6db6aa,0xe5a6a1],shirt=material(palette[Math.floor(Math.random()*palette.length)]),skin=material(0xf4c9aa),hair=material([0x554239,0x312e35,0x91613d][Math.floor(Math.random()*3)]),pants=material(0x50647a),white=material(0xfaf8f0),dark=material(0x2f3b48);
 function ball(r,m,x,y,z,sx=1,sy=1,sz=1){const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);g.add(o);return o}
 function limb(name,x,y,z,m){const o=new THREE.Mesh(new THREE.CapsuleGeometry(.115,.42,4,8),m);o.name=name;o.position.set(x,y,z);g.add(o);return o}
-const feminine=Math.random()<.5;ball(.39,shirt,0,1.04,0,1,.98,.72);if(feminine){ball(.34,shirt,0,.8,0,1,.6,.85);ball(.17,hair,-.27,1.67,-.13,1,1.8,1);ball(.17,hair,.27,1.67,-.13,1,1.8,1)}else if(Math.random()<.4){ball(.33,material(0xeeeeed),0,1.95,0,1,.26,1)}ball(.39,skin,0,1.75,.03,1,1.06,.93);ball(.38,hair,0,1.99,-.045,1,.48,1);ball(.085,skin,-.31,1.67,.01);ball(.085,skin,.31,1.67,.01);
-ball(.042,dark,-.13,1.78,.39);ball(.042,dark,.13,1.78,.39);ball(.062,skin,0,1.60,.36);ball(.052,material(0xf5a3a2),-.24,1.65,.32,1,.5,.45);ball(.052,material(0xf5a3a2),.24,1.65,.32,1,.5,.45);
+const feminine=Math.random()<.5;ball(.39,shirt,0,1.04,0,1,.98,.72);if(feminine){ball(.34,shirt,0,.8,0,1,.6,.85);ball(.17,hair,-.27,1.67,-.13,1,1.8,1);ball(.17,hair,.27,1.67,-.13,1,1.8,1)}else if(Math.random()<.4){ball(.33,material(0xeeeeed),0,1.95,0,1,.26,1)}ball(.46,skin,0,1.75,.03,1,1.04,.94);ball(.44,hair,0,2.01,-.045,1,.43,1);ball(.085,skin,-.31,1.67,.01);ball(.085,skin,.31,1.67,.01);
+ball(.048,dark,-.16,1.79,.445);ball(.048,dark,.16,1.79,.445);ball(.065,skin,0,1.59,.445);ball(.065,material(0xf5a3a2),-.27,1.65,.39,1,.5,.45);ball(.065,material(0xf5a3a2),.27,1.65,.39,1,.5,.45);
 const ll=limb('leftLeg',-.16,.43,0,pants),rl=limb('rightLeg',.16,.43,0,pants),la=limb('leftArm',-.41,1.08,0,shirt),ra=limb('rightArm',.41,1.08,0,shirt);
 ball(.16,white,-.16,.13,.09,1.1,.5,1.45);ball(.16,white,.16,.13,.09,1.1,.5,1.45);g.userData.limbs=[ll,rl,la,ra];return g}
 // V20: rounded character details, realistic-cute silhouettes, varied hair and accessories.
 const addCharacterDetails=g=>{
 const skin=material(0xf3c5a5,0,.85),dark=material(0x392f37),cheek=material(0xe8a6a2),hair=material([0x43332f,0x7e533b,0x302f3d][Math.floor(Math.random()*3)]);
 function sphere(x,y,z,r,m,sx=1,sy=1,sz=1){const o=new THREE.Mesh(new THREE.SphereGeometry(r,16,12),m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);g.add(o);return o}
-sphere(-.19,1.64,.275,.055,cheek,1,.6,.35);sphere(.19,1.64,.275,.055,cheek,1,.6,.35);
-sphere(0,1.96,.025,.31,hair,1,.43,.9);sphere(-.21,1.87,.06,.15,hair,.75,1.1,.85);
+sphere(-.21,1.64,.395,.055,cheek,1,.6,.35);sphere(.21,1.64,.395,.055,cheek,1,.6,.35);
+sphere(0,2.01,.025,.35,hair,1,.43,.9);sphere(-.21,1.87,.06,.15,hair,.75,1.1,.85);
 sphere(.21,1.87,.06,.15,hair,.75,1.1,.85);
-sphere(0,1.56,.305,.04,material(0xa96e66),1,.35,.4);
+sphere(0,1.56,.435,.04,material(0xa96e66),1,.35,.4);
 const jacket=new THREE.Mesh(new THREE.TorusGeometry(.25,.065,7,16,Math.PI),material(0xf7f4ec));jacket.rotation.z=Math.PI; jacket.position.set(0,1.18,.23);g.add(jacket);
 return g};
 template=addCharacterDetails(makeFallbackPerson());msg.textContent='顧客已進店（內建人物模型）';const loader=new GLTFLoader();if(modelURL)loader.load(modelURL,gltf=>{if(!gltf.scene)return;msg.textContent='人物模型已載入；使用可動作內建角色'},undefined,e=>{msg.textContent='顧客已進店，使用內建人物模型'});// V11 grid navigation: NPCs use walkable aisles instead of straight-line movement.
