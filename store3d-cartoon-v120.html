@@ -217,7 +217,7 @@ window.addEventListener('orientationchange',()=>{rotatePrompt.style.display='non
 if(/iPhone|iPad|Android/i.test(navigator.userAgent)){document.body.classList.add('mobile-immersive')}
 
 function error(e){msg.textContent='⚠️ '+String(e?.message||e);document.getElementById('fallback').style.display='block';document.getElementById('err').textContent=String(e?.message||e)}window.addEventListener('unhandledrejection',e=>error(e.reason));window.addEventListener('error',e=>error(e.error||e.message));let inventory=30,sales=0,queue=[],cash=50000,staff=false,restockTime=0,price=49,publicity=0,cashierHired=true,gameTime=0,day=1,expenses=0,earnings=0;
-try{const scene=new THREE.Scene();scene.background=new THREE.Color(0xb9dcf2);scene.fog=new THREE.Fog(0xb9dcf2,65,145);const camera=new THREE.PerspectiveCamera(36,1,.1,160);camera.position.set(18,22,24);const mobile=/iPhone|iPad|Android/i.test(navigator.userAgent);const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:mobile?'high-performance':'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,mobile?Math.min(window.devicePixelRatio||1,2):1.8));renderer.shadowMap.enabled=!mobile;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.13;renderer.outputColorSpace=THREE.SRGBColorSpace;stage.insertBefore(renderer.domElement,msg);const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,.8,0);orbit.enableDamping=true;orbit.maxPolarAngle=1.5;orbit.minDistance=8;orbit.maxDistance=52;
+try{const scene=new THREE.Scene();scene.background=new THREE.Color(0xb9dcf2);scene.fog=new THREE.Fog(0xb9dcf2,65,145);const camera=new THREE.PerspectiveCamera(36,1,.1,160);camera.position.set(18,22,24);const mobile=/iPhone|iPad|Android/i.test(navigator.userAgent);const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:mobile?'high-performance':'high-performance'});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,mobile?1.5:1.8));renderer.shadowMap.enabled=!mobile;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.13;renderer.outputColorSpace=THREE.SRGBColorSpace;stage.insertBefore(renderer.domElement,msg);const orbit=new OrbitControls(camera,renderer.domElement);orbit.target.set(0,.8,0);orbit.enableDamping=true;orbit.maxPolarAngle=1.5;orbit.minDistance=8;orbit.maxDistance=52;
 // V133 camera preset: reset only the view, never modify game state or saved objects.
 const v133ViewButton=document.createElement('button');
 v133ViewButton.type='button';v133ViewButton.id='v133IsometricView';
@@ -921,6 +921,8 @@ function resize(){let w=Math.max(1,stage.clientWidth),h=Math.max(1,stage.clientH
 // V133: observe the actual canvas container, not only window size (iOS toolbar and menu changes).
 if(typeof ResizeObserver!=='undefined'){const v133StageObserver=new ResizeObserver(()=>resize());v133StageObserver.observe(stage)}
 if(window.visualViewport)window.visualViewport.addEventListener('resize',resize,{passive:true});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)resize()});
+window.addEventListener('pageshow',resize,{passive:true});
 // WebGL context loss is recoverable by refreshing; show an explicit notice rather than a frozen blank screen.
 // V133: visible recovery control for mobile WebGL failures; never clears localStorage.
 const v133Recovery=document.createElement('div');
