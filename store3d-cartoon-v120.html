@@ -844,6 +844,7 @@ return g};
 template=addCharacterDetails(makeFallbackPerson());msg.textContent='顧客已進店（內建人物模型）';const loader=new GLTFLoader();if(modelURL)loader.load(modelURL,gltf=>{if(!gltf.scene)return;msg.textContent='人物模型已載入；使用可動作內建角色'},undefined,e=>{msg.textContent='顧客已進店，使用內建人物模型'});// V11 grid navigation: NPCs use walkable aisles instead of straight-line movement.
 /* Initialize before first NPC spawn and pathfinding call. */
 const extraCounterGroups=[];
+let primaryCashierFixture=null;
 const GRID=.5,MINX=-7,MAXX=7,MAXZ=9;
 const cell=(x,z)=>[Math.round(x/GRID),Math.round(z/GRID)];
 const xy=(i,j)=>({x:i*GRID,z:j*GRID});
@@ -1015,7 +1016,7 @@ const queueSpots=[[2,2],[1.25,3.05],[.15,3.05],[-.95,3.05],[-2.05,3.05],[-3.15,3
 const checkoutLanes=[{x:2,z:2,staff:()=>cashierHired},{x:-1.5,z:2.1,staff:()=>extraCashiers>=1},{x:-4,z:2.1,staff:()=>extraCashiers>=2}];
 let extraCashiers=0;try{extraCashiers=Math.max(0,Math.min(2,Number(localStorage.getItem('store-v53-cashiers'))||0))}catch(e){}
 // Preserve the original cashier layout independently of the optional counters.
-const primaryCashierFixture=new THREE.Group();primaryCashierFixture.userData.kind='cashier';primaryCashierFixture.userData.primaryCashier=true;scene.add(primaryCashierFixture);
+primaryCashierFixture=new THREE.Group();primaryCashierFixture.userData.kind='cashier';primaryCashierFixture.userData.primaryCashier=true;scene.add(primaryCashierFixture);
 try{const p=JSON.parse(localStorage.getItem('store-vnext-primary-cashier')||'null');if(p&&Number.isFinite(p.x)&&Number.isFinite(p.z)){checkoutLanes[0].x=p.x;checkoutLanes[0].z=p.z;primaryCashierFixture.rotation.y=Number(p.rotation)||0}}catch(e){}
 primaryCashierFixture.position.set(checkoutLanes[0].x,0,checkoutLanes[0].z-1.1);
 primaryCashierFixture.add(primaryCounterVisual);
